@@ -1,0 +1,7 @@
+{
+  "target_coverage": 0.8,
+  "conformal_coverage": 0.7186224489795918,
+  "conformal_mean_width_levels": 3.512263358212438,
+  "naive_coverage": 0.4854333375141101,
+  "naive_mean_width": 2.7619900703430176
+}

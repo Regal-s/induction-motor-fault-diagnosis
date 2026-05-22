@@ -1,0 +1,34 @@
+{
+  "groupkfold": {
+    "detect_acc": 0.9784284367548384,
+    "detect_macroF1": 0.9764916844497606,
+    "cond_severity_within1": 0.9968448729184926,
+    "cond_severity_exact": 0.9338299737072743,
+    "cond_phase_acc": 0.9570552147239264,
+    "endto_end_exact": 0.9106083291742916,
+    "endto_end_within1": 0.9492596905672933,
+    "faulty_detect_recall": 0.9702380952380952,
+    "per_case": {
+      "n_cases": 357,
+      "detect_acc": 0.969187675070028,
+      "exact": 0.8711484593837535,
+      "within1": 0.927170868347339
+    }
+  },
+  "lolo": {
+    "detect_acc": 0.9532408181463523,
+    "detect_macroF1": 0.9479595885617433,
+    "cond_severity_within1": 0.9446099912357581,
+    "cond_severity_exact": 0.3194566170026293,
+    "cond_phase_acc": 0.9969325153374233,
+    "endto_end_exact": 0.520481524828624,
+    "endto_end_within1": 0.9160675472329042,
+    "faulty_detect_recall": 0.9702380952380952,
+    "per_case": {
+      "n_cases": 342,
+      "detect_acc": 0.9707602339181286,
+      "exact": 0.32456140350877194,
+      "within1": 0.9181286549707602
+    }
+  }
+}

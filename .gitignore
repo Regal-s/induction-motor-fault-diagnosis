@@ -1,0 +1,20 @@
+# Raw PSCAD/EMTDC simulation data (~122 GB source — kept local, not in version control)
+Healthy case data/
+HRC fault data/
+LL/
+TT fault Data/
+
+# Large / regenerable binary artifact (413 MB; rebuild via segment.py)
+dataset/windows.npy
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs / temp
+dataset/dl_run.log
+*.log
+
+# Local Claude Code settings (machine-specific, not project work)
+.claude/

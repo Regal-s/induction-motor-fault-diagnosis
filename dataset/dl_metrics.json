@@ -1,0 +1,19 @@
+{
+  "stage1_grouped": {
+    "macro_f1": 0.8978703417305336,
+    "acc": 0.9018508132361189
+  },
+  "stage1_lolo20": {
+    "macro_f1": 0.40148448043184887,
+    "acc": 0.6708004509582863
+  },
+  "stage3_grouped": {
+    "acc": 0.8484848484848485,
+    "macro_f1": 0.7081413210445469
+  },
+  "stage2_grouped": {
+    "within1": 1.0,
+    "exact": 0.7376623376623377
+  },
+  "note": "ResNet-1D, decimated 8x (250 samples). Compare to XGBoost GroupKFold: Stage1 F1 0.977, Stage2 within-1 0.990, Stage3 acc 0.972; LOLO load20 detect F1 0.749."
+}

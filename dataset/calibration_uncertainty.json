@@ -1,0 +1,13 @@
+{
+  "stage1_calibration": {
+    "brier": 0.021232284598063332,
+    "ece": 0.021221258969368925
+  },
+  "stage2_uncertainty": {
+    "interval": "80% (q0.1-q0.9)",
+    "empirical_coverage": 0.6267857142857143,
+    "mean_width_levels": 3.4123355339173655,
+    "width_when_correct": 3.5715709326934615,
+    "width_when_wrong": 2.8774981789473943
+  }
+}

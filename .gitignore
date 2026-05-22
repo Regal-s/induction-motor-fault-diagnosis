@@ -18,3 +18,6 @@ dataset/dl_run.log
 
 # Local Claude Code settings (machine-specific, not project work)
 .claude/
+
+# Reference papers (PDFs, copyrighted) — keep synthesized notes only
+papers/*.pdf

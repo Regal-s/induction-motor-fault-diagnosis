@@ -20,6 +20,8 @@ Deployed cascade (XGBoost on physics features; severity is load-aware):
 | **Phase ID** | macro-F1 0.972 | **macro-F1 0.997** |
 | **End-to-end** (state + severity±1 + phase) | within-1 **0.949** | within-1 **0.916** |
 
+![Results summary: per-stage and end-to-end performance, in-distribution vs cross-load](dataset/results_summary.png)
+
 **Key finding:** detection and phase ID are load-robust (phase ID rides on the load-invariant
 negative-sequence current *angle*); absolute severity is load-dependent, but supplying the
 **measured load** restores cross-load severity (within-1 0.73 → 0.95). Full analysis in

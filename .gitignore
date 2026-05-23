@@ -31,3 +31,6 @@ manuscript/*.log
 manuscript/*.xdv
 manuscript/*.aux
 manuscript/*.out
+
+# SCST tensor arrays (large, regenerable via scst.py)
+dataset/scst/*.npy

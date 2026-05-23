@@ -1,0 +1,32 @@
+{
+  "detection": {
+    "SCST": {
+      "macro_f1": 0.9717,
+      "acc": 0.9742
+    },
+    "raw-phase": {
+      "macro_f1": 0.9717,
+      "acc": 0.9742
+    }
+  },
+  "phase": {
+    "SCST": {
+      "macro_f1": 0.1975,
+      "acc": 0.2457
+    },
+    "raw-phase": {
+      "macro_f1": 1.0,
+      "acc": 1.0
+    }
+  },
+  "severity": {
+    "SCST": {
+      "within1": 0.917,
+      "exact": 0.4913
+    },
+    "raw-phase": {
+      "within1": 0.917,
+      "exact": 0.5363
+    }
+  }
+}

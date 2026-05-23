@@ -1,0 +1,22 @@
+{
+  "detection_LOLO20": {
+    "SCST": {
+      "macro_f1": 1.0,
+      "acc": 1.0
+    },
+    "raw-phase": {
+      "macro_f1": 1.0,
+      "acc": 1.0
+    }
+  },
+  "severity_LOLO20": {
+    "SCST": {
+      "within1": 1.0,
+      "exact": 0.15
+    },
+    "raw-phase": {
+      "within1": 0.75,
+      "exact": 0.2
+    }
+  }
+}

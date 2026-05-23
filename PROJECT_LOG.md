@@ -338,3 +338,8 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   built unified loader (1235 real windows) + parameterized features.py (fs/f0-aware). Physics validated
   on real data (|I2|/|I1| monotonic 0.061->0.149 over 10-40%). Naive sim->real transfer baseline:
   detection F1 0.48 / phase F1 0.32 (large gap -> motivates PADA). Next = M2 SCST representation.
+- **2026-05-23 — Checkpoint 14:** **PADA (sim->real domain adaptation) DONE** (`experimental/pada.py`).
+  Ladder vs naive (macro-F1 sim->real): detection 0.48->0.59 (unsup quantile) ->0.98 (few-shot +2 reps);
+  phase 0.32->0.50 (unsup) ->0.67 (few-shot). Physics-anchored subset (42 domain-stable feats) matches
+  full-feature quantile alignment (parsimony win). Few-shot calibration with a handful of real reps is the
+  decisive lever; phase the hard case unsupervised (50->60Hz angle frame). Next = M2 (SCST representation).

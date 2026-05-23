@@ -364,3 +364,12 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   within-1 1.0; FiLM HURTS in-dist phase (0.85->0.70) — sensible, phase is load-invariant so load-conditioning is
   irrelevant there -> FiLM should gate severity not phase. Detection/phase still stronger with feature XGBoost
   (data efficiency). **Validates core model novelty: inject measured load via FiLM.** Remaining: PC-Diff (augmentation).
+- **2026-05-23 — Checkpoint 18:** **PC-Diff (physics-constrained augmentation) DONE — MIXED/honest result**
+  (`pcdiff.py`). Conditional VAE, vanilla vs PC (hard Kirchhoff current-balance projection + soft neg-seq-vs-
+  severity loss). PHYSICS ENFORCEMENT WORKS: balance residual 0.000 (PC) vs 0.991 (vanilla). BUT compact MLP-CVAE
+  failed to learn severity-controllable generation (corr(gen |I2|/|I1|, severity) ~0 for both -> posterior
+  collapse / weak conditioning on CPU). Downstream scarce-severity augmentation did NOT help: no-aug within-1
+  0.985, +PC 0.845 (hurt, mislabeled samples), +vanilla 0.982 (neutral); scarce baseline already saturated.
+  HONEST CONCLUSION: physics-constraint mechanism validated, but augmentation value needs a stronger conditional
+  generator (diffusion/cGAN) + genuinely data-starved regime -> the one under-delivering axis (future work).
+  **All 5 novel axes attempted: SCST(M2) +, LIR-mRMR(M3) +, PCM-Net/FiLM(M5) +, PADA +, PC-Diff ~(physics ok, aug no).**

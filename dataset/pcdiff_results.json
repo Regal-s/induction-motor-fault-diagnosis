@@ -1,0 +1,15 @@
+{
+  "physics=True": {
+    "balance_residual": 0.0,
+    "negseq_severity_corr": -0.0168
+  },
+  "physics=False": {
+    "balance_residual": 0.9912,
+    "negseq_severity_corr": 0.0241
+  },
+  "downstream": {
+    "no_aug": 0.9855,
+    "aug_physics=True": 0.8447,
+    "aug_physics=False": 0.9818
+  }
+}

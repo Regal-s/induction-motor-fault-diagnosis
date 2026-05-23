@@ -373,3 +373,8 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   HONEST CONCLUSION: physics-constraint mechanism validated, but augmentation value needs a stronger conditional
   generator (diffusion/cGAN) + genuinely data-starved regime -> the one under-delivering axis (future work).
   **All 5 novel axes attempted: SCST(M2) +, LIR-mRMR(M3) +, PCM-Net/FiLM(M5) +, PADA +, PC-Diff ~(physics ok, aug no).**
+- **2026-05-23 — Checkpoint 19:** **Manuscript revised to novel-method paper** (`manuscript/main.tex`, 9 pages).
+  Folded all 5 novelty axes into main experiments: new Section "Load-Robustness Mechanisms" (SCST, LIR-mRMR,
+  PCM-Net/FiLM, PADA, PC-Diff honest) with real LOLO results + summary table; added experimental ibarram dataset
+  to Section III; updated abstract + 5 contributions; trimmed Future Work to genuine remaining (stronger
+  generator, full Mamba/KAN, voltage unbalance, Mondrian conformal, full benchmark). Compiles clean, citations OK.

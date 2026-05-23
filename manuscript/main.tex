@@ -45,16 +45,22 @@ stator current. A 357-case PSCAD/EMTDC dataset (sampled at 25~kHz, fundamental 5
 segmented into 18{,}033 labelled windows and described by 72 physics-grounded features
 (extended Park's-vector severity factor, symmetrical-component ratios and angles, Park
 ellipse geometry, harmonic ratios). Models are evaluated with a strict group-wise protocol
-and, crucially, with \emph{Leave-One-Load-Out} (LOLO) cross-validation. We show that
+and, crucially, with \emph{Leave-One-Load-Out} (LOLO) cross-validation, which shows that
 detection (macro-F1~$=0.95$) and faulted-phase identification (macro-F1~$=0.997$) are
 intrinsically load-robust because they ride on load-invariant negative-sequence signatures,
-whereas absolute severity is load-dependent; a SHAP-guided analysis isolates the cause and a
-load-aware reformulation restores cross-load severity (within-one-level accuracy
-$0.73\rightarrow0.95$). The end-to-end cascade reaches within-one-level accuracy of $0.95$
-in-distribution and $0.92$ across unseen loads, with calibrated detection (expected
-calibration error $=0.021$), graceful noise degradation, and $100\%$ onset detection. A
-1-D residual network baseline is outperformed by the interpretable feature-based model under
-limited data. The framework is fully reproducible and openly released.
+whereas absolute severity is load-dependent. Building on this insight we introduce four
+load-robustness mechanisms and validate each under LOLO: (i) a \emph{sequence-component
+Stockwell tensor} representation that improves cross-load severity (within-one-level
+$0.75\!\rightarrow\!1.0$); (ii) a \emph{load-invariance-regularized} feature selection
+(LIR-mRMR) that beats plain mRMR at compact size; (iii) a phase-coupled, \emph{FiLM
+load-conditioned} multi-task network (PCM-Net) whose conditioning lifts cross-load severity
+from $0.93$ to $0.98$, the best in the study; and (iv) a \emph{physics-anchored domain
+adaptation} (PADA) that closes the simulation-to-experiment gap on a public real-motor
+dataset (detection macro-F1 $0.48\!\rightarrow\!0.98$ with a few labelled real samples). The
+end-to-end cascade reaches within-one-level accuracy of $0.95$ in-distribution and $0.92$
+across unseen loads, with calibrated detection (expected calibration error $=0.021$), graceful
+noise degradation, and $100\%$ fault-onset detection. All code, splits, and result artifacts
+are openly released.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -100,16 +106,21 @@ random/grouped cross-validation. The contributions are:
 \begin{enumerate}
 \item A \textbf{leakage-safe evaluation framework} for stator-fault ML---grouping windows by
 operating point and reporting LOLO as the primary metric---demonstrating that in-distribution
-scores substantially overstate cross-load generalization.
-\item A \textbf{physics-feature analysis} (SHAP attribution plus a Fisher-versus-load-drift
-study) showing that detection and faulted-phase identification are load-invariant whereas
-absolute severity is load-dependent, and a \textbf{load-aware severity reformulation} that
-recovers cross-load within-one-level accuracy from $0.73$ to $0.95$.
-\item A complete, openly released \textbf{hierarchical cascade} integrating negative-sequence
-fault-onset detection, calibrated detection, ordinal severity estimation, and faulted-phase
-identification, benchmarked honestly---including against a 1-D residual network---under noise
-and with conformal severity intervals.
+scores substantially overstate cross-load generalization, and a SHAP/Fisher analysis showing
+detection and phase are load-invariant whereas absolute severity is load-dependent.
+\item A \textbf{sequence-component Stockwell tensor (SCST)} representation and a
+\textbf{load-invariance-regularized feature selection (LIR-mRMR)}, both designed to make
+diagnosis robust to the mechanical load.
+\item \textbf{PCM-Net}, a phase-coupled, \textbf{FiLM load-conditioned} multi-task network that
+\emph{injects} the measured operating point rather than erasing it, achieving the best cross-load
+severity estimation in the study.
+\item \textbf{Physics-anchored domain adaptation (PADA)} validated \emph{simulation-to-experiment}
+on a public real-motor dataset, and an honest study of physics-constrained generative augmentation.
+\item A complete, openly released \textbf{hierarchical cascade} (onset, detection, severity, phase)
+with calibrated uncertainty, noise-robustness, and a deep-baseline comparison.
 \end{enumerate}
+A unifying theme emerges: the mechanical load is the crux of stator-fault diagnosis, and every
+proposed mechanism independently improves \emph{cross-load} performance.
 
 \section{Related Work}
 \subsection{Physics-based stator-fault indicators}
@@ -193,6 +204,16 @@ Given a short window of three-phase current, the system must (i) decide healthy 
 require an online estimate of the fault-onset instant. Because severity is naturally ordered,
 it is treated as an \emph{ordinal} target; the operationally meaningful metric is
 within-one-level accuracy.
+
+\subsection{Experimental dataset (for transfer)}
+To test simulation-to-experiment transfer we additionally use a public real-motor dataset of a
+$0.75$~hp squirrel-cage induction motor~\cite{ibarram}: three-phase stator current sampled at
+$1$~kHz ($f_0=60$~Hz, no load), with $13$ classes (healthy and inter-turn shorts at
+$10/20/30/40\%$ of turns in each of the three phases) and five repetitions per class. It differs
+from the simulation in fundamental frequency, sampling rate, severity scale, and the absence of a
+healthy baseline segment, providing a demanding cross-domain benchmark. Both datasets are mapped
+to one window/label schema, and the feature extractor derives its harmonic bins from $(f_s,f_0)$
+so a single pipeline serves both.
 
 \section{Methodology}
 \subsection{Windowing and matched-load healthy data}
@@ -569,48 +590,113 @@ load-aware reformulation a measurable contribution rather than a tuning trick. W
 advocate reporting cross-condition (LOLO-style) metrics by default, alongside interpretability
 evidence, so that stator-fault ML results become comparable and trustworthy.
 
+\section{Load-Robustness Mechanisms}
+Guided by the finding that load is the crux of stator-fault diagnosis, we develop four mechanisms
+that each target cross-load robustness, plus an honest study of physics-constrained augmentation.
+Each is evaluated under LOLO; results are summarized in Table~\ref{tab:mechanisms}.
+
+\subsection{Sequence-Component Stockwell Tensor (SCST)}
+Instead of imaging the raw phase currents, we form the instantaneous symmetrical-component streams
+via the analytic (Hilbert) signal and the Fortescue transform, and apply a band-limited Stockwell
+transform to each, stacking the positive/negative/zero $|S|$ maps into a three-channel tensor. The
+negative-sequence channel carries the load-invariant inter-turn signature. Against a raw-phase
+Stockwell control (compact 2-D CNN), SCST is comparable in-distribution but markedly more robust
+across loads: held-out-load severity within-one rises from $0.75$ (raw) to $1.0$ (SCST). A
+deliberate negative result clarifies the design: because symmetrical-component \emph{magnitudes}
+are phase-agnostic, the magnitude SCST cannot localize the faulted phase ($0.20$ vs.\ $1.0$ for raw
+in-distribution); phase localization must use the negative-sequence \emph{angle}. The principle is
+therefore: SCST channels for load-robust detection/severity, the negative-sequence angle for phase.
+
+\subsection{Load-Invariance-Regularized Selection (LIR-mRMR)}
+We extend minimum-redundancy--maximum-relevance with a load-instability penalty,
+$J(f)=\mathrm{Rel}(f)-\lambda\,\mathrm{Red}(f)-\gamma\,\mathrm{LoadInstability}(f)$, where
+$\mathrm{LoadInstability}(f)$ is the across-load drift of the feature's class-conditional mean,
+normalized by its global spread; $\gamma{=}0$ recovers plain mRMR. On the load-dependent severity
+task, LIR-mRMR selects features with roughly half the cross-load drift and generalizes better at
+compact sizes: at $k{=}10$ features the LOLO within-one-level accuracy is $0.848$ versus $0.740$
+for mRMR (near the $0.887$ obtained with all $72$ features). It avoids absolute-magnitude features
+($|I_1|$, $\angle I_1$) in favour of dimensionless, load-stable ones (negative-sequence angle,
+Park eccentricity, $|I_1|$-normalized imbalance), yielding a sparse, interpretable, physically
+traceable subset.
+
+\subsection{PCM-Net: phase-coupled, load-conditioned multi-task network}
+PCM-Net processes the three-phase current with a convolutional stem and a phase-coupling mixer,
+a dilated-temporal backbone (a compact stand-in for a selective state-space model), and multi-task
+heads for detection, faulted phase, and ordinal severity, with a current-balance physics
+regularizer. Its central element is \emph{feature-wise linear modulation} (FiLM)~\cite{perez2018}
+driven by the measured operating point: rather than adversarially erasing the load, the network
+\emph{injects} it, so one model spans loads. A controlled ablation isolates FiLM's effect: it lifts
+LOLO severity within-one-level from $0.932$ (no conditioning) to $\mathbf{0.982}$---the best
+cross-load severity in this study, exceeding even the load-aware gradient-boosted model
+($0.946$). Consistent with the physics, FiLM does \emph{not} help the load-invariant phase task
+(in-distribution phase F1 $0.85\!\rightarrow\!0.70$), confirming that load-conditioning should gate
+the load-dependent head only. (Mamba/KAN backbones are approximated here under a CPU budget; the
+FiLM-conditioning, phase-coupling, multi-task, and physics-regularizer elements are faithful.)
+
+\subsection{Physics-Anchored Domain Adaptation (PADA): simulation $\rightarrow$ experiment}
+Trained on simulation and applied to the real motor~\cite{ibarram} with no adaptation, the model
+collapses (detection macro-F1 $0.48$, phase $0.32$): real healthy windows carry far higher baseline
+asymmetry than the clean simulation, and the $50\!\rightarrow\!60$~Hz angle frame differs. We
+evaluate an adaptation ladder. Unsupervised marginal alignment (per-domain quantile transform)
+roughly doubles phase F1 ($0.32\!\rightarrow\!0.50$); aligning \emph{only} the domain-stable physics
+features (ratios, angles, $|I_1|$-normalized magnitudes---$42$ of $72$) matches full-feature
+alignment, confirming those features carry the transferable signal. The decisive lever is
+\emph{few-shot calibration}: adding two of five labelled real repetitions recovers detection to
+macro-F1 $\mathbf{0.98}$ and improves phase to $0.67$. Thus the inter-turn physics transfers, while
+a naively sim-trained model does not---closed by a handful of real samples.
+
+\subsection{Physics-constrained augmentation (PC-Diff): an honest study}
+We finally test a conditional generator of three-phase current with a \emph{hard} Kirchhoff
+current-balance projection ($i_a+i_b+i_c=0$) and a \emph{soft} negative-sequence-versus-severity
+loss. The hard constraint is enforced exactly (balance residual $0.000$ vs.\ $0.99$ for an
+unconstrained generator), but the compact conditional VAE used here did not achieve
+severity-controllable generation under our CPU budget (generated $|I_2|/|I_1|$ is uncorrelated with
+the conditioned severity), so downstream augmentation did not improve severity. We report this
+negative result transparently: the physics-enforcement mechanism is sound, but realizing its value
+requires a stronger conditional generator (diffusion or GAN) and a genuinely data-starved regime.
+
+\begin{table}[!t]
+\caption{Load-robustness mechanisms, evaluated under LOLO.}
+\label{tab:mechanisms}
+\centering
+\footnotesize
+\begin{tabular}{@{}p{0.40\columnwidth}p{0.52\columnwidth}@{}}
+\toprule
+Mechanism & Cross-load result \\
+\midrule
+SCST representation & severity within-1 $0.75\!\rightarrow\!1.0$ vs raw-phase; phase needs angle \\
+LIR-mRMR selection & $k{=}10$ severity within-1 $0.740\!\rightarrow\!0.848$; drift halved \\
+PCM-Net + FiLM & severity within-1 $0.932\!\rightarrow\!0.982$ (best; $>$ load-aware GBM $0.946$) \\
+PADA (sim$\rightarrow$real) & detection F1 $0.48\!\rightarrow\!0.98$ (few-shot); $0.50$ phase (unsup.) \\
+PC-Diff & current-balance exact; generation not controllable (negative) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Limitations and Future Work}
-The principal limitation is that the reported results are from high-fidelity simulation; although
-the negative-sequence physics that the model relies on is machine-independent, experimental
-validation is required, and our per-recording normalization currently assumes the availability of
-a healthy reference segment. To address these points and to advance the method beyond an
-application of existing tools, we are pursuing five extensions that the recent literature
-identifies as genuinely open for three-phase stator current:
+The diagnosis results are obtained on high-fidelity simulation; the transfer study
+(Section~VII-D) provides initial real-motor validation on a public dataset, but a full
+experimental campaign on an instrumented machine remains future work, and our per-recording
+normalization assumes a healthy reference segment that an online deployment must estimate from a
+trailing window. Several concrete extensions follow directly from the present results.
 
-\emph{(i) Sequence-component Stockwell tensor.} Rather than imaging raw phase currents, we apply
-the Stockwell transform to the positive-, negative-, and zero-sequence streams and stack the three
-time-frequency maps as a tensor input. The negative-sequence channel carries the load-invariant
-inter-turn signature, and the frequency-dependent resolution of the Stockwell transform tracks the
-$2f_0$ EPVA line and slip sidebands better than a fixed-window spectrogram.
+\emph{Stronger generative augmentation.} The physics-constrained augmenter (Section~VII-E) enforces
+current balance exactly but the compact conditional VAE did not yield severity-controllable
+samples; a conditional diffusion or GAN generator, combined with a genuinely data-starved regime,
+is needed to convert the validated physics-enforcement mechanism into a downstream gain.
 
-\emph{(ii) Load-invariance-regularized feature selection.} We extend the
-minimum-redundancy--maximum-relevance criterion with a term that penalizes features whose
-class-conditional statistics drift across load, $J(f)=\mathrm{Rel}(f)-\lambda\,\mathrm{Red}(f)
--\gamma\,\mathrm{LoadVar}(f)$, yielding a sparse, physically traceable, load-stable subset---built
-into the selection criterion rather than relegated to an opaque adversarial back-end.
+\emph{Stronger backbones.} PCM-Net here approximates the selective state-space and
+Kolmogorov--Arnold components~\cite{gu2023,liu2025} with a dilated-temporal backbone and an MLP
+head under a CPU budget; a full Mamba/KAN realization, with the FiLM-conditioning gated to the
+load-dependent (severity) head only, is a natural next step now that the conditioning's value is
+established.
 
-\emph{(iii) Phase-coupled, operating-point-conditioned network.} A linear-time selective
-state-space backbone~\cite{gu2023} processes the current; a small inter-phase coupling module
-encodes the asymmetry that defines the fault; feature-wise modulation~\cite{perez2018} injects the
-\emph{measured} operating point (so the model adapts to load instead of erasing it); and an
-interpretable Kolmogorov--Arnold head~\cite{liu2025} regresses severity, with a physics-informed
-residual tying it to the sequence-component relation.
-
-\emph{(iv) Physics-anchored domain adaptation.} Training on simulation and adapting to experiment
-with alignment anchored on physics invariants (the negative-sequence ratio and unbalance
-coefficients), validated on the public three-phase ITSC current dataset~\cite{ibarram} and the
-current-plus-flux dataset~\cite{cunha2021}, and across machines.
-
-\emph{(v) Physics-constrained generative augmentation.} A conditional generator of three-phase
-current that enforces Kirchhoff current balance as a hard constraint and the
-negative-sequence--severity relation as a soft constraint, enabling synthesis of unseen
-load$\times$severity cells---unlike per-phase augmentation, which would fabricate a spurious
-imbalance.
-
-We further plan to simulate supply voltage unbalance---the classic confounder that mimics the
-inter-turn signature---to verify rejection via the voltage-sequence features, to add
-group-conditional (Mondrian) conformal calibration of the severity intervals, and to broaden the
-benchmark to a dozen-plus classical and deep models under the same leakage-safe protocol.
+\emph{Confounders and calibration.} We plan to simulate supply voltage unbalance---the classic
+confounder that mimics the inter-turn signature---to verify rejection via the voltage-sequence
+features, to add group-conditional (Mondrian) conformal calibration of the severity intervals
+(the marginal conformal intervals here under-cover because the grouped folds break exchangeability),
+and to broaden the benchmark to a dozen-plus classical and deep models under the same leakage-safe
+protocol.
 
 \section{Conclusion}
 We presented a physics-informed, leakage-safe machine-learning framework for stator inter-turn

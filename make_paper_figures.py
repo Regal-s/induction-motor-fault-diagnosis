@@ -19,7 +19,10 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-plt.rcParams.update({"svg.fonttype": "none", "font.size": 10, "figure.dpi": 120})
+plt.rcParams.update({"svg.fonttype": "none", "font.size": 8, "axes.titlesize": 8,
+                     "axes.labelsize": 8, "legend.fontsize": 6.5, "xtick.labelsize": 7,
+                     "ytick.labelsize": 7, "figure.dpi": 120, "lines.linewidth": 1.1})
+COL, DCOL = 3.45, 7.16  # IEEE single- and double-column widths (inches)
 
 from sklearn.metrics import (confusion_matrix, roc_curve, auc,
                              precision_recall_fscore_support, accuracy_score, f1_score)
@@ -47,7 +50,7 @@ def save(fig, name):
 
 def cm_fig(cm, labels, title, name, cmap):
     cm = np.array(cm)
-    fig, ax = plt.subplots(figsize=(0.6*len(labels)+2.2, 0.6*len(labels)+2))
+    fig, ax = plt.subplots(figsize=(0.42*len(labels)+1.7, 0.42*len(labels)+1.5))
     im = ax.imshow(cm, cmap=cmap)
     ax.set_xticks(range(len(labels)), labels); ax.set_yticks(range(len(labels)), labels)
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); ax.set_title(title)
@@ -74,7 +77,7 @@ def main():
 
     # ---------- ROC (detection) overall + per-load, from OOF probs ----------
     oof = pd.read_csv(DS/"stage1_oof_predictions.csv")
-    fig, ax = plt.subplots(figsize=(5.5, 5))
+    fig, ax = plt.subplots(figsize=(COL, 3.0))
     fpr, tpr, _ = roc_curve(oof["label"], oof["prob_faulty"]); A = auc(fpr, tpr)
     ax.plot(fpr, tpr, lw=2.5, color="k", label=f"Overall (AUC={A:.3f})")
     for L in ["NL", "20", "40", "60", "80", "100"]:
@@ -99,7 +102,7 @@ def main():
                "F1": [pd1[2], sev_p[2], ph_p[2]],
                "Accuracy": [accuracy_score(oof["label"], oof["pred"]), sev_acc, ph_acc]}
     stages = ["Detection", "Severity", "Phase"]; x = np.arange(3); w = 0.2
-    fig, ax = plt.subplots(figsize=(7, 4.2))
+    fig, ax = plt.subplots(figsize=(DCOL, 3.1))
     for i, (k, v) in enumerate(metrics.items()):
         b = ax.bar(x + (i-1.5)*w, v, w, label=k)
         for r in b: ax.text(r.get_x()+w/2, r.get_height()+0.005, f"{r.get_height():.2f}", ha="center", fontsize=7)
@@ -142,7 +145,7 @@ def main():
     except Exception: pass
     names = list(comp); f1s = [comp[n][0] for n in names]
     order = np.argsort(f1s); names = [names[i] for i in order]; f1s = [f1s[i] for i in order]
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(COL, 3.4))
     cols = ["#4C78A8" if n not in ("ResNet-1D", "PCM-Net") else "#F58518" for n in names]
     b = ax.barh(names, f1s, color=cols)
     for r in b: ax.text(r.get_width()+0.005, r.get_y()+r.get_height()/2, f"{r.get_width():.3f}", va="center", fontsize=8)
@@ -158,7 +161,7 @@ def main():
                         scale_pos_weight=(y[tr]==0).sum()/max((y[tr]==1).sum(),1), random_state=0)
     xgb.fit(X[tr], y[tr], eval_set=[(X[tr], y[tr]), (X[te], y[te])], verbose=False)
     ev = xgb.evals_result()
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(COL, 2.7))
     ax.plot(ev["validation_0"]["logloss"], label="train")
     ax.plot(ev["validation_1"]["logloss"], label="validation")
     ax.set_xlabel("boosting round"); ax.set_ylabel("log-loss"); ax.set_title("XGBoost detection convergence")
@@ -190,7 +193,7 @@ def main():
         with torch.no_grad():
             pv = (net(Xte_t).squeeze(-1).numpy() > 0).astype(int)
         va_f1.append(f1_score(y[te], pv, average="macro"))
-    fig, ax = plt.subplots(figsize=(6, 4)); ax2 = ax.twinx()
+    fig, ax = plt.subplots(figsize=(COL, 2.7)); ax2 = ax.twinx()
     ax.plot(tr_loss, "b-", label="train loss"); ax2.plot(va_f1, "g-", label="val macro-F1")
     ax.set_xlabel("epoch"); ax.set_ylabel("train loss", color="b"); ax2.set_ylabel("val macro-F1", color="g")
     ax.set_title("1D-CNN learning curves (detection)"); ax.grid(alpha=0.3); save(fig, "fig_learning_cnn.svg")
@@ -205,7 +208,7 @@ def main():
     cnn_params = sum(p.numel() for p in net.parameters())
     eff = {"Feature extract": t_feat, "XGBoost infer": t_xgb,
            "Feat+XGB total": t_feat+t_xgb, "1D-CNN infer": t_cnn}
-    fig, ax = plt.subplots(figsize=(6.5, 4))
+    fig, ax = plt.subplots(figsize=(COL, 2.8))
     b = ax.bar(list(eff), list(eff.values()), color=["#888", "#4C78A8", "#2a9d8f", "#F58518"])
     for r in b: ax.text(r.get_x()+r.get_width()/2, r.get_height()*1.02, f"{r.get_height():.3f}", ha="center", fontsize=8)
     ax.set_ylabel("ms per window (CPU)")
@@ -216,7 +219,7 @@ def main():
     # ---------- noise robustness ----------
     nr = json.load(open(DS/"noise_robustness.json"))
     conds = ["clean", "40", "30", "20"]; xi = [60, 40, 30, 20]
-    fig, ax = plt.subplots(figsize=(6.5, 4.2))
+    fig, ax = plt.subplots(figsize=(COL, 2.9))
     for key, lbl in [("detect_f1", "Detection F1"), ("severity_within1", "Severity within-1"), ("phase_acc", "Phase acc")]:
         ax.plot(xi, [nr[c][key] for c in conds], "o-", label=lbl)
     ax.invert_xaxis(); ax.set_xlabel("SNR (dB)  [clean=60]"); ax.set_ylabel("score")

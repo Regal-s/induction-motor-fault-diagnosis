@@ -383,3 +383,8 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   AUC 0.994), per-stage precision/recall/F1/accuracy, baseline model comparison (5-fold: feature-ML ~0.98 vs
   deep ResNet/PCM-Net 0.898), XGBoost convergence, 1D-CNN learning curves, inference-time/efficiency (feat+XGB
   0.34 ms/window), noise robustness. `make_paper_figures.py` generates all from real data/OOF.
+- **2026-05-23 — Checkpoint 21:** **Format match to IEEE Trans (double-column, Times) + IEEE-sized SVGs.**
+  Reference Final_Submission.pdf = IEEE Trans Magnetics (Word, double-column) -> format only. Manuscript already
+  IEEEtran [journal] (double-column); added newtxtext/newtxmath so it renders in Times (8 pages). Two-column Word
+  version `manuscript_2col.docx` (pandoc + python-docx 2-col section). Regenerated 10 result SVGs at IEEE column
+  widths (single 3.45in / double 7.16in, 8pt fonts) in `figures_svg/`. Final_Submission.pdf gitignored.

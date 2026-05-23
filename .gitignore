@@ -34,3 +34,6 @@ manuscript/*.out
 
 # SCST tensor arrays (large, regenerable via scst.py)
 dataset/scst/*.npy
+
+# Reference-format PDF (third-party, format reference only)
+Final_Submission.pdf

@@ -273,6 +273,24 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
 
 ---
 
+## NOVEL-METHOD IMPLEMENTATION (from NOVEL_METHOD_PLAN.md)
+- **M1 DONE — experimental data ingested + unified pipeline.** Cloned `github.com/ibarram/ITSC`
+  (gitignored `experimental/`). Built `experimental/load_ibarram.py` → unified schema windows
+  (1235: 1140 faulty/95 healthy; balanced phase 380 ea, severity 285 ea; fs=1000, f0=60, no-load,
+  W=500=30cyc). **Parameterized `features.py` (chunk_features/build_feature_frame take fs,f0)** so one
+  extractor serves sim (25kHz/50Hz) and experimental (1kHz/60Hz); sim behavior unchanged.
+  `experimental/features_ibarram.py` → features.parquet. **Physics VALIDATED on real data:** |I2|/|I1|
+  monotonic with severity (0.061→0.149 over 10-40%), healthy/faulty separates (I2/I1 0.029→0.109);
+  phase-angle clustering noisier than sim (A94/B175/C147°) → real phase-ID harder. Note: severity scales
+  differ (exp 10-40% vs sim 0.3-5%) so only detection/phase transfer directly; no load variation in exp.
+- **Sim→real naive-transfer baseline DONE** (`experimental/sim2real_baseline.py`): train on full sim,
+  test on real ibarram, NO adaptation. **Detection macro-F1 0.48** (degenerate: predicts all faulty, because
+  real healthy I2/I1=0.029 >> sim healthy 0.0004 → covariate shift); **phase macro-F1 0.32** (collapses to
+  phase A; 50→60 Hz angle frame differs). → strong motivation for PADA. Physics features transfer (monotonic
+  trends) but naive model transfer fails — the gap to close.
+- **NEXT:** M2 (SCST sequence-component Stockwell tensor representation); then PADA (domain adaptation:
+  per-domain standardization / DANN / MMD with physics anchors) to recover sim→real performance.
+
 ## CHANGELOG / CHECKPOINTS
 - **2026-05-22 — Checkpoint 1:** Created this log. State = planning complete, implementation not started.
   Dataset fully characterised; timeline verified; research done; `ML_PLAN_DETAILED.md` written.
@@ -316,3 +334,7 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   Stage-0 onset: 100% detection / 0% false alarm / 0 ms median delay (0.3% sev ~1.42s). report.md §14 added.
   **AUTONOMOUS RUN COMPLETE — clean stopping point. Phases 1–3 + Phase 4 (conformal, Stage-0) all delivered & documented.**
   Open (not done): domain adaptation, MTL, transformer heads, GAN aug, hardware validation.
+- **2026-05-23 — Checkpoint 13:** **M1 (experimental ingestion) COMPLETE.** Cloned ibarram/ITSC,
+  built unified loader (1235 real windows) + parameterized features.py (fs/f0-aware). Physics validated
+  on real data (|I2|/|I1| monotonic 0.061->0.149 over 10-40%). Naive sim->real transfer baseline:
+  detection F1 0.48 / phase F1 0.32 (large gap -> motivates PADA). Next = M2 SCST representation.

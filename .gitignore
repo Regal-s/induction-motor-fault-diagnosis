@@ -22,8 +22,9 @@ dataset/dl_run.log
 # Reference papers (PDFs, copyrighted) — keep synthesized notes only
 papers/*.pdf
 
-# Experimental datasets (cloned/downloaded)
-experimental/
+# Experimental data (cloned repo + generated arrays) — keep the loader scripts
+experimental/ITSC/
+experimental/ibarram/
 # LaTeX build artifacts & engine binary
 manuscript/tectonic.exe
 manuscript/*.log

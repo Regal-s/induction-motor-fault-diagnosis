@@ -30,13 +30,18 @@ EPS = 1e-12
 CHUNK = 3000
 
 
-def chunk_features(X: np.ndarray) -> dict:
+def chunk_features(X: np.ndarray, fs: float = FS, f0: float = F0) -> dict:
     """X: (n,3,W) normalised current windows -> dict of (n,) feature arrays
-    (+ I2_real/I2_imag for the later compensation pass)."""
+    (+ I2_real/I2_imag for the later compensation pass). FFT harmonic bins are derived
+    from (fs, f0, W) so the SAME extractor serves the 25 kHz/50 Hz simulation and the
+    1 kHz/60 Hz experimental data."""
     ia, ib, ic = X[:, 0, :], X[:, 1, :], X[:, 2, :]
-    n = X.shape[0]
+    n, W = X.shape[0], X.shape[2]
+    bn = lambda h: int(round(h * f0 * W / fs))    # FFT bin of the h-th harmonic
+    B1, B2, B3 = bn(1), bn(2), bn(3)
+    nyq = W // 2
 
-    # --- fundamental phasors (single-bin DFT at 50 Hz) & symmetrical components ---
+    # --- fundamental phasors (single-bin DFT at f0) & symmetrical components ---
     F = np.fft.rfft(X, axis=2)                    # (n,3,W/2+1)
     P = (2.0 / W) * F[:, :, B1]                   # complex (n,3) phasors
     Pa, Pb, Pc = P[:, 0], P[:, 1], P[:, 2]
@@ -58,8 +63,8 @@ def chunk_features(X: np.ndarray) -> dict:
     mag = lambda b: 2.0 * np.abs(F[:, :, b]) / W  # (n,3)
     h1, h3 = mag(B1), mag(B3)
     h3ratio = h3 / (h1 + EPS)                     # (n,3)
-    # THD over harmonics 2..15 (bins 4h)
-    harm_bins = [B1 * h for h in range(2, 16)]
+    # THD over harmonics 2..15 (clamped below Nyquist for low-fs experimental data)
+    harm_bins = [bn(h) for h in range(2, 16) if bn(h) < nyq]
     thd_num = np.sqrt(np.sum((2.0 * np.abs(F[:, :, harm_bins]) / W) ** 2, axis=2))
     thd = thd_num / (h1 + EPS)                    # (n,3)
 
@@ -125,14 +130,15 @@ def chunk_features(X: np.ndarray) -> dict:
     return d
 
 
-def build_feature_frame(X, lab, verbose=False):
+def build_feature_frame(X, lab, verbose=False, fs=FS, f0=F0):
     """X (N,3,W) + label df (needs case_id,label) -> feature-only DataFrame (incl
-    compensated I2c and |I1|-normalised n_* features), aligned to X rows, finite."""
+    compensated I2c and |I1|-normalised n_* features), aligned to X rows, finite.
+    fs/f0 select the harmonic bins (sim: 25 kHz/50 Hz; experimental: 1 kHz/60 Hz)."""
     n = X.shape[0]
     parts = []
     for s in range(0, n, CHUNK):
         e = min(s + CHUNK, n)
-        parts.append(pd.DataFrame(chunk_features(np.asarray(X[s:e]))))
+        parts.append(pd.DataFrame(chunk_features(np.asarray(X[s:e]), fs=fs, f0=f0)))
         if verbose:
             print(f"  features {e}/{n}")
     feat = pd.concat(parts, ignore_index=True)

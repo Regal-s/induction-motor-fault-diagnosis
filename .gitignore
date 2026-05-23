@@ -21,3 +21,12 @@ dataset/dl_run.log
 
 # Reference papers (PDFs, copyrighted) — keep synthesized notes only
 papers/*.pdf
+
+# Experimental datasets (cloned/downloaded)
+experimental/
+# LaTeX build artifacts & engine binary
+manuscript/tectonic.exe
+manuscript/*.log
+manuscript/*.xdv
+manuscript/*.aux
+manuscript/*.out

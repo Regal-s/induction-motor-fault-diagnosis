@@ -388,3 +388,11 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   IEEEtran [journal] (double-column); added newtxtext/newtxmath so it renders in Times (8 pages). Two-column Word
   version `manuscript_2col.docx` (pandoc + python-docx 2-col section). Regenerated 10 result SVGs at IEEE column
   widths (single 3.45in / double 7.16in, 8pt fonts) in `figures_svg/`. Final_Submission.pdf gitignored.
+- **2026-05-23 — Checkpoint 22:** **Manuscript restructured to reference (Final_Submission.pdf) outline.**
+  Used the reference (IEEE Trans Magnetics) for FORMAT/structure only. New section/subtopic outline (verified to
+  match): I Introduction (A Motivation, B Literature Review, C Key Contributions); II Proposed Methodology
+  (A Overview, B Preprocessing & Symmetrical Components, C Stockwell/SCST, D Time-Domain & Spectral, E Statistical
+  Features, F Data Augmentation & Feature Selection, G XGBoost Model, H Transfer Learning); III Experimental Setup
+  & Dataset Prep (A Setup, B Datasets); IV Performance Evaluation (A Implementation & Training, B Results &
+  Discussion, C Comparative Evaluation); V Conclusion. Double-column IEEE Times, 6 pages, compiles clean. Two-column
+  Word `manuscript_ieee.docx` regenerated. All my technical content/results retained (reference content NOT used).

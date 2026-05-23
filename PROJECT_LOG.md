@@ -357,3 +357,10 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   (pva_ecc, neg-seq angle sin/cos, n_rms_imbalance, skew); mRMR pulls load-drifting magnitudes (I1_abs,
   I1_angle_deg). Validates building load-invariance into the selection criterion. (k=15 dip = greedy noise.)
   Plan progress: M1+PADA+M2+M3 done. Remaining: PCM-Net (M5, heaviest) + PC-Diff (augmentation).
+- **2026-05-23 — Checkpoint 17:** **M5 (PCM-Net, compact) DONE** (`dl_pcmnet.py`). Phase-coupled, FiLM-load-
+  conditioned multi-task net (detect/phase/severity) + current-balance physics regularizer; Mamba/KAN approximated
+  by dilated-temporal backbone (CPU). FiLM ablation: **LOLO severity within-1 0.932 (no FiLM) -> 0.982 (FiLM)** —
+  best cross-load severity in project (> XGBoost load-aware 0.946). In-distribution: detect F1 0.898, severity
+  within-1 1.0; FiLM HURTS in-dist phase (0.85->0.70) — sensible, phase is load-invariant so load-conditioning is
+  irrelevant there -> FiLM should gate severity not phase. Detection/phase still stronger with feature XGBoost
+  (data efficiency). **Validates core model novelty: inject measured load via FiLM.** Remaining: PC-Diff (augmentation).

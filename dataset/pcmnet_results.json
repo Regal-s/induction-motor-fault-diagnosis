@@ -1,0 +1,14 @@
+{
+  "group_film=True": {
+    "detect_f1": 0.8979,
+    "phase_f1": 0.7009,
+    "severity_within1": 1.0
+  },
+  "group_film=False": {
+    "detect_f1": 0.8979,
+    "phase_f1": 0.8495,
+    "severity_within1": 1.0
+  },
+  "lolo_severity_within1_film=True": 0.9821,
+  "lolo_severity_within1_film=False": 0.9316
+}

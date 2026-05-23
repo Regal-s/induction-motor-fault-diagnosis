@@ -396,3 +396,8 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   & Dataset Prep (A Setup, B Datasets); IV Performance Evaluation (A Implementation & Training, B Results &
   Discussion, C Comparative Evaluation); V Conclusion. Double-column IEEE Times, 6 pages, compiles clean. Two-column
   Word `manuscript_ieee.docx` regenerated. All my technical content/results retained (reference content NOT used).
+- **2026-05-23 — Checkpoint 23:** **Vector figures embedded + paper expanded.** make_paper_figures.py now also
+  writes vector PDFs to manuscript/figs/. Embedded 11 vector figures into main.tex (events; phase & severity
+  confusion; ROC+detection-confusion panel; per-stage metrics; XGBoost convergence + 1D-CNN learning curves;
+  results summary; model comparison; inference efficiency). Expanded methodology overview + results discussion.
+  Manuscript now 8 pages double-column Times, compiles clean. Regenerated two-column Word `manuscript_ieee_final.docx`.

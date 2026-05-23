@@ -44,8 +44,10 @@ SEVL = [0.3, 0.5, 1, 2, 3, 4, 5]; PH = ["A", "B", "C"]
 
 
 def save(fig, name):
-    fig.tight_layout(); fig.savefig(OUT / name, format="svg", bbox_inches="tight"); plt.close(fig)
-    print("saved", name)
+    fig.tight_layout(); fig.savefig(OUT / name, format="svg", bbox_inches="tight")
+    pdfdir = ROOT / "manuscript" / "figs"; pdfdir.mkdir(parents=True, exist_ok=True)
+    fig.savefig(pdfdir / name.replace(".svg", ".pdf"), format="pdf", bbox_inches="tight")  # vector for LaTeX
+    plt.close(fig); print("saved", name)
 
 
 def cm_fig(cm, labels, title, name, cmap):

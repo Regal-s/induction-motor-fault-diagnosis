@@ -139,6 +139,17 @@ statistical feature extraction (II-D, II-E), data augmentation and feature selec
 gradient-boosted and deep classifiers (II-G), and a transfer-learning stage for
 simulation-to-experiment deployment (II-H).
 
+The hierarchical, gated organization is deliberate: the four questions (is a fault present, of
+what severity, in which phase, and when did it start) are nested and have different decision
+boundaries and different load sensitivities, so a single flat multi-class model would conflate them
+and waste the structure. Gating the severity and phase stages on the detector also means those
+stages are trained and operated only on data they are meant to explain, and it lets per-stage errors
+be attributed and audited independently. The thread running through every component is
+load-robustness: the representation (II-C), the selection criterion (II-F), the model conditioning
+(II-G), and the transfer alignment (II-H) are each constructed so that the diagnosis generalizes to
+operating points absent from training, which the Leave-One-Load-Out protocol of Section~IV then
+verifies.
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figs/events_annotated.png}
@@ -261,13 +272,24 @@ few labelled target repetitions. Section~IV-C quantifies the recovery on a publi
 \section{Experimental Setup and Dataset Preparation}
 \subsection{Description of the Experimental Setup}
 The primary dataset is generated from a three-phase squirrel-cage induction motor with stator
-inter-turn faults modelled in PSCAD/EMTDC ($f_0=50$~Hz, $f_s=25$~kHz, $10$~s per run). For
-transfer-learning validation we additionally use a public real-motor dataset~\cite{ibarram}: a
-$0.75$~hp squirrel-cage IM, three-phase current at $1$~kHz ($f_0=60$~Hz, no load), with healthy and
-inter-turn shorts at $10/20/30/40\%$ of turns in each phase. The two sources differ in fundamental
-frequency, sampling rate, severity scale, and the presence of a healthy baseline, providing a
-demanding cross-domain benchmark; both are mapped to a common window/label schema and the feature
-extractor derives its harmonic bins from $(f_s,f_0)$.
+inter-turn faults modelled in PSCAD/EMTDC ($f_0=50$~Hz, $f_s=25$~kHz, $10$~s per run, $500$ samples
+per cycle). The fault is introduced through a tapped stator winding that short-circuits a controlled
+fraction $\mu$ of one phase's turns, and each run follows a fixed schedule that mimics a realistic
+duty cycle: the motor is energized at $2.0$~s, the mechanical load is applied at $4.0$~s, the
+inter-turn short is inserted at $7.2$~s, and it is cleared $\approx0.8$~s later (Fig.~\ref{fig:events}).
+This schedule lets a single run furnish both a faulted segment and a matched-load healthy segment, and
+it exercises the start-up inrush, the loaded steady state, and the fault transient. The three-phase
+currents are exported and used directly (no filtering), so the diagnosis operates on the raw drive
+measurement.
+
+For transfer-learning validation we additionally use a public real-motor dataset~\cite{ibarram}: a
+$0.75$~hp squirrel-cage IM, three-phase current acquired with split-core current transformers at
+$1$~kHz ($f_0=60$~Hz, no mechanical load), with a healthy class and inter-turn shorts at
+$10/20/30/40\%$ of turns in each of the three phases over five repetitions per class. The two sources
+differ in fundamental frequency, sampling rate, severity scale, sensing chain, and the presence of a
+healthy baseline, providing a demanding cross-domain benchmark; both are mapped to a common
+window/label schema and the feature extractor derives its harmonic bins from $(f_s,f_0)$ so that one
+pipeline serves both.
 
 \subsection{Data Sets Generated from the Experimental Setup}
 The simulation corpus spans severity $\mu\in\{0.3,0.5,1,2,3,4,5\}\%$, faulted phase $\in\{A,B,C\}$,
@@ -290,7 +312,18 @@ quadratic-weighted kappa (QWK), and per-phase F1, computed on out-of-fold predic
 as a mean over folds. Stages~2--3 are trained on faulty windows but evaluated on the windows the
 detector predicts faulty, so cascade numbers reflect realistic error propagation; predictions are
 also aggregated per recording (median severity, majority-vote phase). Scalers are fit on the
-training partition only and all randomized components use fixed seeds.
+training partition only and all randomized components use fixed seeds. No per-model hyperparameter
+tuning is performed on the test folds, so the comparison in Section~IV-C is fair across models.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.42\textwidth]{figs/fig_learning_xgb.pdf}\hfill
+\includegraphics[width=0.42\textwidth]{figs/fig_learning_cnn.pdf}
+\caption{Training behaviour. Left: XGBoost detection convergence (train/validation log-loss vs.\
+boosting round). Right: 1-D CNN learning curves (training loss and validation macro-F1 vs.\ epoch),
+showing stable convergence without over-fitting.}
+\label{fig:learning}
+\end{figure*}
 
 \subsection{Results and Discussion}
 \emph{Per-stage performance.} Table~\ref{tab:stages} reports each stage. In-distribution, all stages
@@ -315,11 +348,20 @@ Stage & Metric & Group $k$-Fold & LOLO \\
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.7\columnwidth]{figs/stage3_confusion.png}
+\includegraphics[width=0.8\columnwidth]{figs/fig_confusion_phase.pdf}
 \caption{Faulted-phase confusion (group $k$-fold, out-of-fold). Phase C is perfect; only minor
 A$\leftrightarrow$B confusion remains. Cross-load (LOLO) phase accuracy is $0.997$.}
 \label{fig:cm3}
 \end{figure}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.42\textwidth]{figs/fig_roc.pdf}\hfill
+\includegraphics[width=0.42\textwidth]{figs/fig_confusion_detection.pdf}
+\caption{Detection. Left: receiver operating characteristic, overall and per held-out load
+(overall AUC $=0.994$). Right: confusion matrix (group $k$-fold, out-of-fold).}
+\label{fig:roc}
+\end{figure*}
 
 \emph{Load-robustness analysis.} SHAP attribution shows detection and phase ride on the
 \emph{negative-sequence} ratio and angle and on inter-phase RMS differences---load-invariant
@@ -345,7 +387,7 @@ Load-invariant $+$ $|I_1|$-norm & 0.990 & 0.729 \\
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=0.8\columnwidth]{figs/stage2_confusion.png}
+\includegraphics[width=0.9\columnwidth]{figs/fig_confusion_severity.pdf}
 \caption{Severity confusion (group $k$-fold). Errors are almost entirely between adjacent levels,
 justifying the ordinal treatment and the within-one-level metric (QWK $=0.987$).}
 \label{fig:cm2}
@@ -364,6 +406,13 @@ metrics under both protocols.
 (LOLO). Phase identification is the only metric for which cross-load exceeds in-distribution,
 reflecting its load-invariance.}
 \label{fig:summary}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figs/fig_metrics.pdf}
+\caption{Per-stage precision, recall, F1, and accuracy (macro, group $k$-fold out-of-fold).}
+\label{fig:metrics}
 \end{figure}
 
 \emph{Calibration, uncertainty, onset, robustness.} Stage-1 probabilities are well calibrated
@@ -430,9 +479,17 @@ The high phase score ($0.997$) is physically defensible---the faulted phase is e
 negative-sequence angle, a load- and noise-robust quantity---while the in-distribution-versus-LOLO
 severity gap quantifies how much a conventional evaluation would have over-promised. We therefore
 advocate cross-condition (LOLO) reporting, alongside interpretability evidence, as standard practice.
-The principal limitation is that the diagnosis results are from high-fidelity simulation; the transfer
-study below provides initial real-motor validation, but a full instrumented campaign and a
-voltage-unbalance robustness study remain future work.
+The in-distribution figures are consistent with the best reported values for current-based stator
+diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
+contribution here is not a higher in-distribution number but a demonstration of \emph{which} of those
+numbers survive a change of operating point, and a set of mechanisms that make the load-dependent ones
+survive. From a deployment standpoint the pipeline is attractive: it consumes only the
+already-measured three-phase current, runs in well under a millisecond per window on a CPU
+(Fig.~\ref{fig:infer}), exposes interpretable physical quantities (the negative-sequence ratio and
+EPVA factor that drive a decision), and provides calibrated probabilities with an online onset trigger
+suitable for a protection relay. The principal limitation is that the diagnosis results are from
+high-fidelity simulation; the transfer study provides initial real-motor validation, but a full
+instrumented campaign and a voltage-unbalance robustness study remain future work.
 
 \subsection{Comparative Evaluation}
 \emph{Baseline models.} On detection (five-fold mean macro-F1), the physics-feature classifiers
@@ -440,7 +497,24 @@ cluster high---LogReg $0.979$, SVM-RBF $0.978$, KNN $0.982$, MLP $0.979$, Random
 XGBoost $0.978$---while raw-signal deep models are lower (1-D ResNet $0.898$, PCM-Net $0.898$),
 consistent with the data-efficiency of physically engineered features (Table~\ref{tab:dl}). The
 feature pipeline is also lightweight: feature extraction plus XGBoost inference costs $\approx0.34$~ms
-per window on CPU, comfortably real-time.
+per window on CPU, comfortably real-time (Fig.~\ref{fig:modelcomp}, Fig.~\ref{fig:infer}).
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figs/fig_model_comparison.pdf}
+\caption{Baseline model comparison on detection (five-fold mean macro-F1). Feature-based ML (blue)
+clusters high; raw-signal deep models (orange) trade in-distribution detection for their cross-load
+severity edge.}
+\label{fig:modelcomp}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.86\columnwidth]{figs/fig_inference_time.pdf}
+\caption{Inference efficiency (milliseconds per window, CPU): feature extraction, XGBoost inference,
+their total, and the 1-D CNN.}
+\label{fig:infer}
+\end{figure}
 
 \begin{table}[!t]
 \caption{Feature-based cascade vs.\ deep baseline.}

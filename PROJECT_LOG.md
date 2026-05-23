@@ -350,3 +350,10 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   phase-agnostic by design (angle, discarded by |S|, carries phase). **Cross-load (held-out load): SCST
   severity within-1 1.0 vs raw 0.75** — the load-invariant negative-seq channel generalizes severity to
   unseen loads. Design principle: SCST for load-robust detect/severity + neg-seq ANGLE for phase. Next = PCM-Net (M5).
+- **2026-05-23 — Checkpoint 16:** **M3 (LIR-mRMR feature selection) DONE** (`select_lir.py`).
+  Criterion J(f)=Rel - lambda*Redundancy - gamma*LoadInstability (gamma=0 -> plain mRMR). On load-blind
+  severity, LOLO within-1: k=5 mRMR 0.741 vs LIR 0.834; k=10 mRMR 0.740 vs LIR 0.848 (near all-72=0.887 with
+  10 feats); selected-feature mean load-drift ~halved (0.18 vs 0.38). LIR picks dimensionless stable feats
+  (pva_ecc, neg-seq angle sin/cos, n_rms_imbalance, skew); mRMR pulls load-drifting magnitudes (I1_abs,
+  I1_angle_deg). Validates building load-invariance into the selection criterion. (k=15 dip = greedy noise.)
+  Plan progress: M1+PADA+M2+M3 done. Remaining: PCM-Net (M5, heaviest) + PC-Diff (augmentation).

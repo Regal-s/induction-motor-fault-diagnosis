@@ -1,0 +1,145 @@
+{
+  "per_k": {
+    "5": {
+      "mrmr_within1": 0.7414,
+      "lir_within1": 0.8342,
+      "mrmr_meandrift": 0.4327,
+      "lir_meandrift": 0.2152,
+      "mrmr_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "n_rms_imbalance_std",
+        "n_rms_imbalance_maxmin",
+        "pva_axratio"
+      ],
+      "lir_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "I2_angle_sin",
+        "n_rms_imbalance_std",
+        "phc_skew"
+      ]
+    },
+    "10": {
+      "mrmr_within1": 0.7395,
+      "lir_within1": 0.8484,
+      "mrmr_meandrift": 0.3803,
+      "lir_meandrift": 0.1795,
+      "mrmr_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "n_rms_imbalance_std",
+        "n_rms_imbalance_maxmin",
+        "pva_axratio",
+        "I2_angle_sin",
+        "I1_abs",
+        "pha_skew",
+        "epva_sf",
+        "I1_angle_deg"
+      ],
+      "lir_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "I2_angle_sin",
+        "n_rms_imbalance_std",
+        "phc_skew",
+        "argmax_rms_phase",
+        "n_rms_imbalance_maxmin",
+        "I2_rel_angle_cos",
+        "I2_rel_angle_sin",
+        "phb_skew"
+      ]
+    },
+    "15": {
+      "mrmr_within1": 0.7767,
+      "lir_within1": 0.747,
+      "mrmr_meandrift": 0.3752,
+      "lir_meandrift": 0.2105,
+      "mrmr_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "n_rms_imbalance_std",
+        "n_rms_imbalance_maxmin",
+        "pva_axratio",
+        "I2_angle_sin",
+        "I1_abs",
+        "pha_skew",
+        "epva_sf",
+        "I1_angle_deg",
+        "argmax_rms_phase",
+        "n_park_2f",
+        "phc_skew",
+        "park_dc",
+        "park_mod_mean"
+      ],
+      "lir_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "I2_angle_sin",
+        "n_rms_imbalance_std",
+        "phc_skew",
+        "argmax_rms_phase",
+        "n_rms_imbalance_maxmin",
+        "I2_rel_angle_cos",
+        "I2_rel_angle_sin",
+        "phb_skew",
+        "I2c_angle_sin",
+        "I1_abs",
+        "I2c_angle_cos",
+        "pva_axratio",
+        "pha_skew"
+      ]
+    },
+    "20": {
+      "mrmr_within1": 0.7827,
+      "lir_within1": 0.7869,
+      "mrmr_meandrift": 0.3505,
+      "lir_meandrift": 0.1954,
+      "mrmr_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "n_rms_imbalance_std",
+        "n_rms_imbalance_maxmin",
+        "pva_axratio",
+        "I2_angle_sin",
+        "I1_abs",
+        "pha_skew",
+        "epva_sf",
+        "I1_angle_deg",
+        "argmax_rms_phase",
+        "n_park_2f",
+        "phc_skew",
+        "park_dc",
+        "park_mod_mean",
+        "I2_rel_angle_cos",
+        "n_park_mod_std",
+        "I2_rel_angle_sin",
+        "I2c_I1_ratio",
+        "I2c_angle_sin"
+      ],
+      "lir_feats": [
+        "pva_ecc",
+        "I2_angle_cos",
+        "I2_angle_sin",
+        "n_rms_imbalance_std",
+        "phc_skew",
+        "argmax_rms_phase",
+        "n_rms_imbalance_maxmin",
+        "I2_rel_angle_cos",
+        "I2_rel_angle_sin",
+        "phb_skew",
+        "I2c_angle_sin",
+        "I1_abs",
+        "I2c_angle_cos",
+        "pva_axratio",
+        "pha_skew",
+        "phc_crest",
+        "I2_rel_angle_deg",
+        "I1_angle_deg",
+        "pva_tilt_deg",
+        "I2c_angle_deg"
+      ]
+    }
+  },
+  "all_features_within1": 0.8868
+}

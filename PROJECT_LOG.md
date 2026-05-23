@@ -378,3 +378,8 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   PCM-Net/FiLM, PADA, PC-Diff honest) with real LOLO results + summary table; added experimental ibarram dataset
   to Section III; updated abstract + 5 contributions; trimmed Future Work to genuine remaining (stronger
   generator, full Mamba/KAN, voltage unbalance, Mondrian conformal, full benchmark). Compiles clean, citations OK.
+- **2026-05-23 — Checkpoint 20:** **Manuscript Word export + SVG result figures.** `manuscript.docx` (pandoc).
+  10 editable SVGs in `figures_svg/` (svg.fonttype=none): confusion (detect/severity/phase), ROC (overall+per-load,
+  AUC 0.994), per-stage precision/recall/F1/accuracy, baseline model comparison (5-fold: feature-ML ~0.98 vs
+  deep ResNet/PCM-Net 0.898), XGBoost convergence, 1D-CNN learning curves, inference-time/efficiency (feat+XGB
+  0.34 ms/window), noise robustness. `make_paper_figures.py` generates all from real data/OOF.

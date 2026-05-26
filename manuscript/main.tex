@@ -1,7 +1,8 @@
 \documentclass[journal]{IEEEtran}
 % ============================================================================
 % IEEE Transactions style manuscript (double column, Times via newtx).
-% Section/subsection outline follows the supplied reference format.
+% Full rewrite: clearer statement of the delivered system + strengthened
+% Results section organized around cross-load (LOLO) generalization.
 % Compile with pdflatex/tectonic. Author/affiliation are placeholders.
 % ============================================================================
 \usepackage{amsmath}
@@ -22,10 +23,10 @@ Diagnosis in Induction Motors: A Leakage-Safe Cascade for Detection, Severity, a
 Faulted-Phase Identification}
 
 \author{Shashwat~Garg%
-\thanks{Manuscript received May 23, 2026. \emph{(Corresponding author: Shashwat Garg.)}}%
+\thanks{Manuscript received May 26, 2026. \emph{(Corresponding author: Shashwat Garg.)}}%
 \thanks{The author is with the Department of Electrical Engineering (affiliation
 placeholder), e-mail: author@institution.edu.}%
-\thanks{Code and result artifacts are publicly available at
+\thanks{Code, dataset splits, and result artifacts are publicly available at
 \url{https://github.com/Regal-s/induction-motor-fault-diagnosis}.}}
 
 \markboth{IEEE Transactions (Preprint), 2026}%
@@ -37,163 +38,165 @@ placeholder), e-mail: author@institution.edu.}%
 Stator winding turn-to-turn (inter-turn) short-circuit faults are a leading cause of
 induction-motor failure, and early, load-robust diagnosis from non-invasive stator-current
 measurements remains an open problem. Most reported machine-learning (ML) studies achieve
-near-perfect in-distribution accuracy but do not test generalization to unseen operating
-points, and the field rarely releases code or uses leakage-safe evaluation. This paper
-presents a physics-informed, leakage-safe ML framework that performs hierarchical diagnosis:
-fault-onset detection, healthy/faulty classification, ordinal severity estimation
-(percentage of shorted turns), and faulted-phase identification, all from the three-phase
-stator current. A 357-case PSCAD/EMTDC dataset (sampled at 25~kHz, fundamental 50~Hz) is
-segmented into 18{,}033 labelled windows and described by 72 physics-grounded features
-(extended Park's-vector severity factor, symmetrical-component ratios and angles, Park
-ellipse geometry, harmonic ratios). Models are evaluated with a strict group-wise protocol
-and, crucially, with \emph{Leave-One-Load-Out} (LOLO) cross-validation, which shows that
-detection (macro-F1~$=0.95$) and faulted-phase identification (macro-F1~$=0.997$) are
-intrinsically load-robust because they ride on load-invariant negative-sequence signatures,
-whereas absolute severity is load-dependent. Building on this insight we introduce four
-load-robustness mechanisms and validate each under LOLO: (i) a sequence-component
-Stockwell tensor representation that improves cross-load severity (within-one-level
-$0.75\!\rightarrow\!1.0$); (ii) a load-invariance-regularized feature selection
-(LIR-mRMR); (iii) a phase-coupled, FiLM load-conditioned multi-task network (PCM-Net) whose
-conditioning lifts cross-load severity from $0.93$ to $0.98$; and (iv) a physics-anchored
-domain adaptation (PADA) that closes the simulation-to-experiment gap on a public real-motor
-dataset (detection macro-F1 $0.48\!\rightarrow\!0.98$ with a few labelled real samples). The
-end-to-end cascade reaches within-one-level accuracy of $0.95$ in-distribution and $0.92$
-across unseen loads, with calibrated detection (expected calibration error $=0.021$), graceful
-noise degradation, and $100\%$ fault-onset detection. All code, splits, and artifacts are released.
+near-perfect in-distribution accuracy but never test generalization to unseen operating points,
+rarely release code, and seldom use leakage-safe evaluation. This paper presents a complete,
+openly released, physics-informed framework that performs hierarchical diagnosis from the
+three-phase stator current---fault-onset detection, healthy/faulty classification, ordinal severity
+estimation (percentage of shorted turns), and faulted-phase identification---and that is evaluated
+with a strict group-wise protocol and, above all, with \emph{Leave-One-Load-Out} (LOLO)
+cross-validation. A $357$-case PSCAD/EMTDC corpus ($f_s=25$~kHz, $f_0=50$~Hz) is segmented into
+$18{,}033$ labelled windows described by $72$ physics-grounded features. LOLO reveals a clean
+structural result: detection (macro-F1 $0.95$) and faulted-phase identification (macro-F1 $0.997$)
+are intrinsically load-robust because they ride on load-invariant negative-sequence signatures,
+whereas absolute severity is load-dependent. We then (i) benchmark \emph{eight} models on identical
+splits---including the tabular foundation model \emph{TabPFN-2.5} and an \emph{xLSTM} sequence
+network---establishing that, in-distribution, the task is saturated (all feature models within
+$\pm0.01$ macro-F1) so that the honest discriminator is cross-load behaviour; and (ii) introduce and
+ablate four load-robustness mechanisms: a sequence-component Stockwell tensor (cross-load severity
+within-one $0.75\!\rightarrow\!1.0$), a load-invariance-regularized feature selection, a
+FiLM load-conditioned multi-task network (cross-load severity $0.93\!\rightarrow\!0.98$), and a
+physics-anchored domain adaptation that recovers a simulation-trained detector on a public real-motor
+dataset ($0.48\!\rightarrow\!0.98$ macro-F1 with two labelled real samples). The deployed cascade
+reaches within-one-level accuracy of $0.95$ in-distribution and $0.92$ across unseen loads, with
+calibrated detection (expected calibration error $0.021$), graceful noise degradation, and $100\%$
+fault-onset detection at $0\%$ pre-fault false alarm. All code, splits, and artifacts are released.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Induction motor, inter-turn fault, stator winding, fault diagnosis, severity estimation,
-machine learning, negative-sequence current, leakage-safe evaluation, transfer learning.
+Induction motor, inter-turn fault, stator winding, fault diagnosis, severity estimation, machine
+learning, negative-sequence current, leakage-safe evaluation, foundation model, transfer learning.
 \end{IEEEkeywords}
 
 \section{Introduction}
 \subsection{Motivation}
 \IEEEPARstart{I}{nduction} motors (IMs) drive the majority of industrial processes, and stator
 winding insulation degradation is among their most common and consequential failure modes. An
-incipient inter-turn (turn-to-turn) short circuit (ITSC) shorts a small fraction of the turns of
-one phase winding; the circulating fault current accelerates local heating and, if undetected,
-escalates to a phase-to-ground or phase-to-phase fault and catastrophic machine
-loss~\cite{penman1994,cardoso2001}. Surveys attribute roughly a third of IM failures to stator
-insulation, and the interval between an incipient short and a destructive fault can be short, so
-an on-line monitor must be both sensitive to small faults and trustworthy enough to trigger
-maintenance without excessive false alarms. Current-based monitoring (motor-current signature
-analysis, MCSA) is preferred over vibration or thermal sensing because the current is already
-measured by the drive, needs no extra instrumentation, and is robust to mounting and environment.
-Two practical questions must be answered: \emph{how severe} is the fault and \emph{which phase} is
-affected; and both must hold up as the mechanical load changes.
+incipient inter-turn (turn-to-turn) short circuit (ITSC) shorts a small fraction of the turns of one
+phase winding; the circulating fault current accelerates local heating and, if undetected, escalates
+to a phase-to-ground or phase-to-phase fault and catastrophic machine loss~\cite{penman1994,cardoso2001}.
+Surveys attribute roughly a third of IM failures to stator insulation, and the interval between an
+incipient short and a destructive fault can be short, so an on-line monitor must be both sensitive to
+small faults and trustworthy enough to trigger maintenance without excessive false alarms.
+Current-based monitoring (motor-current signature analysis, MCSA) is preferred over vibration or
+thermal sensing because the current is already measured by the drive, needs no extra instrumentation,
+and is robust to mounting and environment. Three practical questions must be answered---\emph{is} a
+fault present, \emph{how severe} is it, and \emph{which phase} is affected---and, critically, the
+answers must hold up as the mechanical load changes.
 
 \subsection{Literature Review}
-Penman \emph{et al.}~\cite{penman1994} established the inter-turn sideband frequencies in the
-stator current, and Cardoso \emph{et al.}~\cite{cardoso2001} introduced the Extended Park's Vector
-Approach (EPVA), in which the $2f_0$ component of the current-vector modulus scales with winding
-asymmetry. The negative-sequence current and negative-sequence impedance are widely used asymmetry
-descriptors~\cite{garcia2024,ruzimov2025}, and phasor-compensation suppresses the baseline
-asymmetry due to supply unbalance. Mazzoletti \emph{et al.}~\cite{mazzoletti2025} use the
-positive-sequence fifth-harmonic current during soft-starter start-up to distinguish ITSC from
-high-resistance connections; Singh and Shaik~\cite{singh2020} combine the Stockwell transform with
-support-vector machines to detect, type, and localize stator faults. Data-driven studies feed
-short-time-Fourier amplitudes of symmetrical components to SVM/MLP classifiers~\cite{pietrzak2022},
-compare ANN/LSTM/physics-informed networks on a public dataset~\cite{aasar2026} (observing that
-intermediate severities overlap), or ensemble convolutional networks on
-spectrograms~\cite{ali2025}. Recent architectures---temporal-convolutional~\cite{bai2018},
-attention/Transformer~\cite{vaswani2017}, selective state-space~\cite{gu2023}, and
-Kolmogorov--Arnold networks~\cite{liu2025}---are largely demonstrated on bearing vibration rather
-than three-phase stator current. A comprehensive review~\cite{hussain2025} flags three systemic
-weaknesses of the field: suspiciously perfect accuracies from leaky train/test partitions, almost
-no released code or standardized datasets, and little validation across operating conditions. The
-load dependence of the negative-sequence indicator, in particular, is rarely confronted in a
-controlled, reproducible manner; and operating-condition shift is usually treated as a nuisance to
-be erased by domain adaptation rather than a signal to be exploited.
+Penman \emph{et al.}~\cite{penman1994} established the inter-turn sideband frequencies in the stator
+current, and Cardoso \emph{et al.}~\cite{cardoso2001} introduced the Extended Park's Vector Approach
+(EPVA), in which the $2f_0$ component of the current-vector modulus scales with winding asymmetry. The
+negative-sequence current and negative-sequence impedance are widely used asymmetry
+descriptors~\cite{garcia2024,ruzimov2025}, and phasor compensation suppresses the baseline asymmetry
+due to supply unbalance. Mazzoletti \emph{et al.}~\cite{mazzoletti2025} use the positive-sequence
+fifth-harmonic current during soft-starter start-up to distinguish ITSC from high-resistance
+connections; Singh and Shaik~\cite{singh2020} combine the Stockwell transform with support-vector
+machines to detect, type, and localize stator faults. Data-driven studies feed short-time-Fourier
+amplitudes of symmetrical components to SVM/MLP classifiers~\cite{pietrzak2022}, compare
+ANN/LSTM/physics-informed networks on a public dataset~\cite{aasar2026} (observing that intermediate
+severities overlap), or ensemble convolutional networks on spectrograms~\cite{ali2025}. Recent
+architectures---temporal-convolutional~\cite{bai2018}, attention/Transformer~\cite{vaswani2017},
+selective state-space~\cite{gu2023}, and Kolmogorov--Arnold networks~\cite{liu2025}, as well as
+tabular foundation models---are largely demonstrated on bearing vibration or generic tabular data
+rather than three-phase stator current. A comprehensive review~\cite{hussain2025} flags three systemic
+weaknesses of the field: suspiciously perfect accuracies from leaky train/test partitions, almost no
+released code or standardized datasets, and little validation across operating conditions. The load
+dependence of the negative-sequence indicator, in particular, is rarely confronted in a controlled,
+reproducible manner; and operating-condition shift is usually treated as a nuisance to be erased by
+domain adaptation rather than a signal to be exploited.
 
-\subsection{Key Contributions of the Proposed Approach}
+\subsection{Summary of Contributions}
 This paper treats ITSC diagnosis as a hierarchical problem
 (onset~$\rightarrow$~detection~$\rightarrow$~severity~$\rightarrow$~faulted phase) and adopts
-\emph{Leave-One-Load-Out} (LOLO) evaluation as its central methodological device. The
-contributions are:
+\emph{Leave-One-Load-Out} (LOLO) evaluation as its central methodological device. Concretely, the
+delivered system and its contributions are:
 \begin{itemize}
-\item A \emph{leakage-safe evaluation framework} (group-by-operating-point, LOLO as the primary
-metric) and a SHAP/Fisher analysis showing detection and faulted phase are load-invariant whereas
-absolute severity is load-dependent.
-\item A \emph{sequence-component Stockwell tensor} (SCST) representation and a
-\emph{load-invariance-regularized feature selection} (LIR-mRMR), both engineered for load robustness.
-\item \emph{PCM-Net}, a phase-coupled, FiLM \emph{load-conditioned} multi-task network that injects
-the measured operating point rather than erasing it, giving the best cross-load severity estimate.
-\item \emph{Physics-anchored domain adaptation} (PADA) validated simulation-to-experiment on a
-public real-motor dataset, plus an honest study of physics-constrained generative augmentation.
-\item A complete, openly released cascade with calibrated uncertainty, fault-onset detection,
-noise-robustness, and a deep-baseline comparison.
+\item A \emph{leakage-safe evaluation framework}---grouping by operating point and using LOLO as the
+primary metric---together with a SHAP/Fisher analysis that explains \emph{why} detection and faulted
+phase are load-invariant while absolute severity is load-dependent. We argue this should be standard
+practice for the field.
+\item A \emph{four-stage cascade} on $72$ physics-grounded features: onset detection, healthy/faulty
+detection, ordinal severity estimation, and faulted-phase identification, with calibrated probabilities,
+conformal severity intervals, and an online onset trigger.
+\item A \emph{controlled eight-model benchmark} on identical splits---logistic regression, SVM-RBF,
+$k$-NN, MLP, random forest, XGBoost, the tabular foundation model \emph{TabPFN-2.5}, and an
+\emph{xLSTM} sequence network---showing the in-distribution task is saturated and that cross-load
+behaviour, not in-distribution accuracy, is the meaningful axis of comparison.
+\item Four \emph{load-robustness mechanisms}, each ablated under LOLO: a sequence-component Stockwell
+tensor (SCST) representation, a load-invariance-regularized feature selection (LIR-mRMR), a
+phase-coupled FiLM \emph{load-conditioned} multi-task network (PCM-Net) that injects rather than erases
+the operating point, and physics-anchored domain adaptation (PADA) validated
+simulation-to-experiment, plus an honest negative result on physics-constrained generative augmentation.
+\item A fully \emph{reproducible} release of code, leakage-safe splits, feature tables, and per-model
+result artifacts.
 \end{itemize}
 A unifying theme emerges: the mechanical load is the crux of stator-fault diagnosis, and every
 proposed mechanism independently improves \emph{cross-load} performance.
 
 \section{Proposed Methodology}
 \subsection{Overview}
-The system ingests a short window of three-phase current and produces, in sequence, an estimate of
-the fault-onset instant, a healthy/faulty decision, and---when faulty---an ordinal severity level
-and the faulted phase. Fig.~\ref{fig:events} shows the underlying signal: each faulted record
-follows a fixed schedule (motor start, load change, fault inception, clearing) verified from the
-per-cycle current envelope. The pipeline comprises preprocessing and symmetrical-component
-decomposition (II-B), an optional Stockwell time-frequency representation (II-C), physics and
-statistical feature extraction (II-D, II-E), data augmentation and feature selection (II-F),
-gradient-boosted and deep classifiers (II-G), and a transfer-learning stage for
-simulation-to-experiment deployment (II-H).
+The system ingests a short window of three-phase current and produces, in sequence, an estimate of the
+fault-onset instant, a healthy/faulty decision, and---when faulty---an ordinal severity level and the
+faulted phase. Fig.~\ref{fig:events} shows the underlying signal: each faulted record follows a fixed
+schedule (motor start, load change, fault inception, clearing) verified from the per-cycle current
+envelope. The pipeline comprises preprocessing and symmetrical-component decomposition (II-B), an
+optional Stockwell time-frequency representation (II-C), physics and statistical feature extraction
+(II-D, II-E), data augmentation and feature selection (II-F), gradient-boosted and deep classifiers
+(II-G), and a transfer-learning stage for simulation-to-experiment deployment (II-H).
 
-The hierarchical, gated organization is deliberate: the four questions (is a fault present, of
-what severity, in which phase, and when did it start) are nested and have different decision
-boundaries and different load sensitivities, so a single flat multi-class model would conflate them
-and waste the structure. Gating the severity and phase stages on the detector also means those
-stages are trained and operated only on data they are meant to explain, and it lets per-stage errors
-be attributed and audited independently. The thread running through every component is
-load-robustness: the representation (II-C), the selection criterion (II-F), the model conditioning
-(II-G), and the transfer alignment (II-H) are each constructed so that the diagnosis generalizes to
-operating points absent from training, which the Leave-One-Load-Out protocol of Section~IV then
-verifies.
+The hierarchical, gated organization is deliberate: the four questions (is a fault present, of what
+severity, in which phase, and when did it start) are nested, have different decision boundaries, and
+have different load sensitivities, so a single flat multi-class model would conflate them and waste the
+structure. Gating the severity and phase stages on the detector means those stages are trained and
+operated only on data they are meant to explain, and lets per-stage errors be attributed and audited
+independently. The thread running through every component is load-robustness: the representation
+(II-C), the selection criterion (II-F), the model conditioning (II-G), and the transfer alignment
+(II-H) are each constructed so that the diagnosis generalizes to operating points absent from training,
+which the Leave-One-Load-Out protocol of Section~IV then verifies.
 
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figs/events_annotated.png}
 \caption{Phase-A current (top) and per-cycle RMS envelope (bottom) of a faulted record, with motor
-start ($2.0$~s), load change ($4.0$~s), fault inception ($7.2$~s), and clearing ($8.0$~s). The
-fault interval supplies faulty windows; the pre-fault loaded region supplies matched-load healthy
-windows.}
+start ($2.0$~s), load change ($4.0$~s), fault inception ($7.2$~s), and clearing ($8.0$~s). The fault
+interval supplies faulty windows; the pre-fault loaded region supplies matched-load healthy windows.}
 \label{fig:events}
 \end{figure}
 
 \subsection{Signal Preprocessing and Symmetrical-Component Decomposition}
-Each recording is segmented into windows of $W=2000$ samples (four $50$~Hz cycles); a $75\%$
-overlap is used inside the short $0.8$~s fault interval and a sparser stride elsewhere. Crucially,
-the \emph{pre-fault} loaded region of every faulted record (genuinely healthy, since the fault is
-inserted only at $7.2$~s) is labelled healthy, providing matched-load healthy data at the same
-loads as the faulty windows and preventing the detector from separating classes by load level. To
-remove load-induced amplitude while preserving the inter-phase imbalance that encodes the fault,
-all three phases of a window are divided by a single per-recording scale; magnitude features are
-additionally divided by the within-window positive-sequence fundamental $|I_1|$ to obtain
-load-invariant variants. The Clarke transform underlying the EPVA and the Park ellipse is
+Each recording is segmented into windows of $W=2000$ samples (four $50$~Hz cycles); a $75\%$ overlap is
+used inside the short $0.8$~s fault interval and a sparser stride elsewhere. Crucially, the
+\emph{pre-fault} loaded region of every faulted record (genuinely healthy, since the fault is inserted
+only at $7.2$~s) is labelled healthy, providing matched-load healthy data at the same loads as the
+faulty windows and preventing the detector from separating classes by load level. To remove
+load-induced amplitude while preserving the inter-phase imbalance that encodes the fault, all three
+phases of a window are divided by a single per-recording scale; magnitude features are additionally
+divided by the within-window positive-sequence fundamental $|I_1|$ to obtain load-invariant variants.
+The Clarke transform underlying the EPVA and the Park ellipse is
 \begin{equation}
 i_\alpha=\tfrac{2}{3}\!\left(i_a-\tfrac{1}{2}i_b-\tfrac{1}{2}i_c\right),\quad
 i_\beta=\tfrac{1}{\sqrt{3}}\left(i_b-i_c\right),
 \end{equation}
-and the fundamental symmetrical components follow from the Fortescue transform of the per-phase
-phasors:
+and the fundamental symmetrical components follow from the Fortescue transform of the per-phase phasors:
 \begin{equation}
 \begin{bmatrix}\mathbf{I}_0\\\mathbf{I}_1\\\mathbf{I}_2\end{bmatrix}
 =\frac{1}{3}\begin{bmatrix}1&1&1\\ 1&a&a^{2}\\ 1&a^{2}&a\end{bmatrix}
 \begin{bmatrix}\mathbf{I}_a\\\mathbf{I}_b\\\mathbf{I}_c\end{bmatrix},\quad a=e^{\,j2\pi/3}.
 \end{equation}
-The negative-sequence ratio $|I_2|/|I_1|$ grows monotonically with the shorted-turn fraction and
-is the primary severity descriptor, while the angle $\angle\mathbf{I}_2$ separates into three
+The negative-sequence ratio $|I_2|/|I_1|$ grows monotonically with the shorted-turn fraction and is the
+primary severity descriptor, while the angle $\angle\mathbf{I}_2$ separates into three
 $\sim$$120^{\circ}$-spaced clusters that identify the faulted phase.
 
 \subsection{Stockwell-Based Time-Frequency Analysis}
-For a time-frequency representation we form the instantaneous symmetrical-component streams from
-the analytic (Hilbert) signal and the Fortescue transform, and apply a band-limited Stockwell
-transform to each, stacking the positive/negative/zero $|S|$ maps into a three-channel
-\emph{sequence-component Stockwell tensor} (SCST). The negative-sequence channel carries the
-load-invariant inter-turn signature, and the frequency-dependent resolution of the Stockwell
-transform tracks the $2f_0$ EPVA line and slip sidebands better than a fixed-window spectrogram.
-Because symmetrical-component \emph{magnitudes} are phase-agnostic, faulted-phase localization uses
-the negative-sequence \emph{angle} rather than the magnitude tensor (Section~IV-C).
+For a time-frequency representation we form the instantaneous symmetrical-component streams from the
+analytic (Hilbert) signal and the Fortescue transform, and apply a band-limited Stockwell transform to
+each, stacking the positive/negative/zero $|S|$ maps into a three-channel \emph{sequence-component
+Stockwell tensor} (SCST). The negative-sequence channel carries the load-invariant inter-turn
+signature, and the frequency-dependent resolution of the Stockwell transform tracks the $2f_0$ EPVA line
+and slip sidebands better than a fixed-window spectrogram. Because symmetrical-component
+\emph{magnitudes} are phase-agnostic, faulted-phase localization uses the negative-sequence \emph{angle}
+rather than the magnitude tensor (Section~IV-E).
 
 \subsection{Time-Domain and Spectral Characteristics}
 Physically grounded descriptors capture the fault signature. The EPVA severity factor is
@@ -202,18 +205,18 @@ Physically grounded descriptors capture the fault signature. The EPVA severity f
 \end{equation}
 where $A(2f_0)$ is the amplitude of the $100$~Hz component of the Park-vector modulus. From the
 $2{\times}2$ covariance of $(i_\alpha,i_\beta)$ we derive the Park ellipse eccentricity
-$e=\sqrt{1-(b/a)^2}$, axis ratio and tilt. Spectral descriptors include the per-phase third-harmonic
+$e=\sqrt{1-(b/a)^2}$, axis ratio, and tilt. Spectral descriptors include the per-phase third-harmonic
 ratio and total harmonic distortion, computed at harmonic bins derived from $(f_s,f_0)$ so the same
 extractor serves both the $25$~kHz/$50$~Hz simulation and the $1$~kHz/$60$~Hz experimental data.
 
 \subsection{Statistical Feature Extraction}
-Per-phase root-mean-square, peak, crest factor, standard deviation, skewness, and kurtosis are
-computed, together with their inter-phase differences (which directly encode asymmetry) and the
+Per-phase root-mean-square, peak, crest factor, standard deviation, skewness, and kurtosis are computed,
+together with their inter-phase differences (which directly encode asymmetry) and the
 $|I_1|$-normalized magnitude variants. With the symmetrical-component, EPVA, ellipse, and harmonic
-quantities this yields the 72-feature bank summarized in Table~\ref{tab:features}. Severity is
-encoded as an ordinal rank $r\in\{0,\dots,6\}$ over $\{0.3,0.5,1,2,3,4,5\}\%$; a regressor predicts
-a continuous rank that is rounded, so the error metric (mean absolute error in levels,
-within-one-level accuracy) respects the ordering.
+quantities this yields the $72$-feature bank summarized in Table~\ref{tab:features}. Severity is encoded
+as an ordinal rank $r\in\{0,\dots,6\}$ over $\{0.3,0.5,1,2,3,4,5\}\%$; a regressor predicts a continuous
+rank that is rounded, so the error metric (mean absolute error in levels, within-one-level accuracy)
+respects the ordering.
 
 \begin{table}[!t]
 \caption{Feature groups (72 features per window).}
@@ -239,112 +242,123 @@ penalty,
 \begin{equation}
 J(f)=\mathrm{Rel}(f)-\lambda\,\mathrm{Red}(f)-\gamma\,\mathrm{LoadInstability}(f),
 \end{equation}
-where $\mathrm{LoadInstability}(f)$ is the across-load drift of the feature's class-conditional
-mean normalized by its global spread ($\gamma{=}0$ recovers plain mRMR). LIR-mRMR selects
-dimensionless, load-stable features and, on the load-dependent severity task, generalizes better at
-compact size (Section~IV-C). \emph{Augmentation.} We additionally study a conditional generator of
-three-phase current with a hard Kirchhoff current-balance projection ($i_a+i_b+i_c=0$) and a soft
-negative-sequence-versus-severity loss; the hard constraint is enforced exactly, an honest negative
-result on controllability is reported in Section~IV-C.
+where $\mathrm{LoadInstability}(f)$ is the across-load drift of the feature's class-conditional mean
+normalized by its global spread ($\gamma{=}0$ recovers plain mRMR). LIR-mRMR selects dimensionless,
+load-stable features and, on the load-dependent severity task, generalizes better at compact size
+(Section~IV-E). \emph{Augmentation.} We additionally study a conditional generator of three-phase
+current with a hard Kirchhoff current-balance projection ($i_a+i_b+i_c=0$) and a soft
+negative-sequence-versus-severity loss; the hard constraint is enforced exactly, and an honest negative
+result on controllability is reported in Section~IV-E.
 
-\subsection{Extreme Gradient Boosting Model}
-Gradient-boosted trees (XGBoost~\cite{chen2016}) implement the three stages: detection
-(class-weighted binary), severity (ordinal regression on the rank), and faulted phase (three-class).
-Stages~1 and~3 use the full feature set; the severity stage uses the load-invariant subset and the
-\emph{measured} load. The detector gates the downstream stages: windows predicted faulty are passed
-to the severity and phase models. As a deep alternative we develop \emph{PCM-Net}, a phase-coupled,
+\subsection{Models: Gradient Boosting, Foundation Model, and Deep Networks}
+Gradient-boosted trees (XGBoost~\cite{chen2016}) implement the three stages: detection (class-weighted
+binary), severity (ordinal regression on the rank), and faulted phase (three-class). Stages~1 and~3 use
+the full feature set; the severity stage uses the load-invariant subset and the \emph{measured} load.
+The detector gates the downstream stages: windows predicted faulty are passed to the severity and phase
+models. To place the cascade in context we evaluate, on identical splits, six classical feature
+classifiers and two recent learners on the same $72$ features or raw windows: \emph{TabPFN-2.5}~\cite{hollmann2025}, a
+pretrained tabular foundation model that performs in-context Bayesian inference over a feature table,
+and \emph{xLSTM}~\cite{beck2024}, an extended LSTM with exponential gating and a stabilizer state applied to the raw
+three-phase current. As a load-conditioned deep alternative we develop \emph{PCM-Net}, a phase-coupled,
 multi-task network with a dilated-temporal backbone (a compact stand-in for a selective state-space
 model) and \emph{feature-wise linear modulation} (FiLM)~\cite{perez2018} driven by the measured
-operating point, so one model spans loads instead of erasing the condition; a current-balance
-physics term regularizes training. A fault-onset stage thresholds a per-cycle negative-sequence
-index $\rho(k)=|I_2(k)|/|I_1(k)|$ against a trailing pre-fault reference,
-$\rho(k)>\overline{\rho}+6\sigma$ for three consecutive cycles. Detection probabilities are assessed
-with expected calibration error and the Brier score~\cite{guo2017}, and severity uncertainty with
-conformalized quantile regression~\cite{romano2019,angelopoulos2021}.
+operating point, so one model spans loads instead of erasing the condition; a current-balance physics
+term regularizes training. A fault-onset stage thresholds a per-cycle negative-sequence index
+$\rho(k)=|I_2(k)|/|I_1(k)|$ against a trailing pre-fault reference, $\rho(k)>\overline{\rho}+6\sigma$ for
+three consecutive cycles. Detection probabilities are assessed with expected calibration error and the
+Brier score~\cite{guo2017}, and severity uncertainty with conformalized quantile
+regression~\cite{romano2019,angelopoulos2021}.
 
 \subsection{Transfer Learning}
-To deploy a simulation-trained model on a real machine we use physics-anchored domain adaptation
-(PADA). A naively transferred model collapses under domain shift; we therefore align feature
-distributions across domains, anchoring the alignment on the domain-stable physics features
-(negative-sequence ratio, angles, $|I_1|$-normalized magnitudes), and optionally calibrate with a
-few labelled target repetitions. Section~IV-C quantifies the recovery on a public real-motor dataset.
+To deploy a simulation-trained model on a real machine we use physics-anchored domain adaptation (PADA).
+A naively transferred model collapses under domain shift; we therefore align feature distributions
+across domains, anchoring the alignment on the domain-stable physics features (negative-sequence ratio,
+angles, $|I_1|$-normalized magnitudes), and optionally calibrate with a few labelled target repetitions.
+Section~IV-E quantifies the recovery on a public real-motor dataset.
 
 \section{Experimental Setup and Dataset Preparation}
 \subsection{Description of the Experimental Setup}
-The primary dataset is generated from a three-phase squirrel-cage induction motor with stator
-inter-turn faults modelled in PSCAD/EMTDC ($f_0=50$~Hz, $f_s=25$~kHz, $10$~s per run, $500$ samples
-per cycle). The fault is introduced through a tapped stator winding that short-circuits a controlled
-fraction $\mu$ of one phase's turns, and each run follows a fixed schedule that mimics a realistic
-duty cycle: the motor is energized at $2.0$~s, the mechanical load is applied at $4.0$~s, the
-inter-turn short is inserted at $7.2$~s, and it is cleared $\approx0.8$~s later (Fig.~\ref{fig:events}).
-This schedule lets a single run furnish both a faulted segment and a matched-load healthy segment, and
-it exercises the start-up inrush, the loaded steady state, and the fault transient. The three-phase
-currents are exported and used directly (no filtering), so the diagnosis operates on the raw drive
-measurement.
+The primary dataset is generated from a three-phase squirrel-cage induction motor with stator inter-turn
+faults modelled in PSCAD/EMTDC ($f_0=50$~Hz, $f_s=25$~kHz, $10$~s per run, $500$ samples per cycle). The
+fault is introduced through a tapped stator winding that short-circuits a controlled fraction $\mu$ of
+one phase's turns, and each run follows a fixed schedule that mimics a realistic duty cycle: the motor
+is energized at $2.0$~s, the mechanical load is applied at $4.0$~s, the inter-turn short is inserted at
+$7.2$~s, and it is cleared $\approx0.8$~s later (Fig.~\ref{fig:events}). This schedule lets a single run
+furnish both a faulted segment and a matched-load healthy segment, and it exercises the start-up inrush,
+the loaded steady state, and the fault transient. The three-phase currents are exported and used
+directly (no filtering), so the diagnosis operates on the raw drive measurement.
 
 For transfer-learning validation we additionally use a public real-motor dataset~\cite{ibarram}: a
-$0.75$~hp squirrel-cage IM, three-phase current acquired with split-core current transformers at
-$1$~kHz ($f_0=60$~Hz, no mechanical load), with a healthy class and inter-turn shorts at
-$10/20/30/40\%$ of turns in each of the three phases over five repetitions per class. The two sources
-differ in fundamental frequency, sampling rate, severity scale, sensing chain, and the presence of a
-healthy baseline, providing a demanding cross-domain benchmark; both are mapped to a common
-window/label schema and the feature extractor derives its harmonic bins from $(f_s,f_0)$ so that one
-pipeline serves both.
+$0.75$~hp squirrel-cage IM, three-phase current acquired with split-core current transformers at $1$~kHz
+($f_0=60$~Hz, no mechanical load), with a healthy class and inter-turn shorts at $10/20/30/40\%$ of turns
+in each of the three phases over five repetitions per class. The two sources differ in fundamental
+frequency, sampling rate, severity scale, sensing chain, and the presence of a healthy baseline,
+providing a demanding cross-domain benchmark; both are mapped to a common window/label schema and the
+feature extractor derives its harmonic bins from $(f_s,f_0)$ so that one pipeline serves both.
 
 \subsection{Data Sets Generated from the Experimental Setup}
 The simulation corpus spans severity $\mu\in\{0.3,0.5,1,2,3,4,5\}\%$, faulted phase $\in\{A,B,C\}$,
-load $\in\{\mathrm{NL},20,40,60,80,100\}\%$, and several fault-inception instants, with a healthy
-set over the full load range: $357$ cases ($336$ faulty, $21$ healthy). Segmentation yields
-$18{,}033$ labelled windows ($11{,}760$ faulty, $6{,}273$ healthy), balanced across severity and
-phase. The real-motor set yields $1{,}235$ windows. Windows are grouped by operating point
-(severity$\times$phase$\times$load), with all inception variants of a point kept together, so that
-no window from a record can appear in both training and test.
+load $\in\{\mathrm{NL},20,40,60,80,100\}\%$, and several fault-inception instants, with a healthy set
+over the full load range: $357$ cases ($336$ faulty, $21$ healthy). Segmentation yields $18{,}033$
+labelled windows ($11{,}760$ faulty, $6{,}273$ healthy), balanced across severity and phase. The
+real-motor set yields $1{,}235$ windows. Windows are grouped by operating point
+(severity$\times$phase$\times$load), with all inception variants of a point kept together, so that no
+window from a record can appear in both training and test.
 
 \section{Performance Evaluation}
-\subsection{Implementation and Training Procedure}
+\subsection{Implementation and Evaluation Protocol}
 Features are computed in Python (NumPy/Pandas) and models trained with scikit-learn and XGBoost
 ($400$--$500$ trees, depth $5$, learning rate $0.05$, subsample/colsample $0.8$); deep models use
-PyTorch. Two evaluation protocols are used: Stratified Group $k$-Fold ($k{=}5$, grouped by operating
-point) for the in-distribution estimate, and \emph{Leave-One-Load-Out} (LOLO)---all windows at one
-load form the test set---as the primary metric, measuring generalization to an operating point never
-seen in training. Reported metrics are accuracy, macro-F1, severity within-one-level accuracy and
-quadratic-weighted kappa (QWK), and per-phase F1, computed on out-of-fold predictions and reported
-as a mean over folds. Stages~2--3 are trained on faulty windows but evaluated on the windows the
-detector predicts faulty, so cascade numbers reflect realistic error propagation; predictions are
-also aggregated per recording (median severity, majority-vote phase). Scalers are fit on the
-training partition only and all randomized components use fixed seeds. No per-model hyperparameter
-tuning is performed on the test folds, so the comparison in Section~IV-C is fair across models.
+PyTorch and TabPFN-2.5 runs on CPU. Two evaluation protocols are used: Stratified Group $k$-Fold
+($k{=}5$, grouped by operating point) for the in-distribution estimate, and \emph{Leave-One-Load-Out}
+(LOLO)---all windows at one load form the test set---as the primary metric, measuring generalization to
+an operating point never seen in training. Reported metrics are accuracy, macro-F1, severity
+within-one-level accuracy, mean absolute error (MAE) in levels, quadratic-weighted kappa (QWK), and
+per-phase F1, computed on out-of-fold predictions and reported as a mean over folds. Stages~2--3 are
+trained on faulty windows but evaluated on the windows the detector predicts faulty, so cascade numbers
+reflect realistic error propagation; predictions are also aggregated per recording (median severity,
+majority-vote phase). Scalers are fit on the training partition only, every benchmark model sees
+identical folds, no per-model tuning is done on test folds, and all randomized components use fixed
+seeds.
 
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=0.42\textwidth]{figs/fig_learning_xgb.pdf}\hfill
-\includegraphics[width=0.42\textwidth]{figs/fig_learning_cnn.pdf}
-\caption{Training behaviour. Left: XGBoost detection convergence (train/validation log-loss vs.\
-boosting round). Right: 1-D CNN learning curves (training loss and validation macro-F1 vs.\ epoch),
-showing stable convergence without over-fitting.}
-\label{fig:learning}
-\end{figure*}
-
-\subsection{Results and Discussion}
-\emph{Per-stage performance.} Table~\ref{tab:stages} reports each stage. In-distribution, all stages
-exceed $0.97$; under LOLO, detection (macro-F1 $0.948$) and faulted-phase identification (macro-F1
-$0.997$) remain strong. The detection ROC has area $0.994$, and the faulted-phase confusion matrix
-(Fig.~\ref{fig:cm3}) is near-diagonal.
+\subsection{Headline Results}
+Table~\ref{tab:stages} summarizes the deployed cascade. \emph{The central finding is structural rather
+than numerical:} in-distribution, every stage exceeds $0.97$, but only LOLO separates the three tasks
+into those that genuinely generalize across operating points (detection, macro-F1 $0.948$; faulted
+phase, macro-F1 $0.997$) and the one that does not without intervention (absolute severity). The
+detection ROC has area $0.994$ (Fig.~\ref{fig:roc}) and the faulted-phase confusion matrix
+(Fig.~\ref{fig:cm3}) is near-diagonal with phase~C perfect. End-to-end, scoring a window correct when
+healthy windows are detected healthy and faulty windows have the correct phase and a severity within one
+level, the gated cascade reaches within-one accuracy $0.949$ in-distribution and $0.916$ across unseen
+loads (per-recording $0.927$ and $0.918$); Fig.~\ref{fig:summary} contrasts the two protocols.
+Notably, faulted-phase identification is the only metric for which cross-load \emph{exceeds}
+in-distribution, a direct consequence of its load-invariance.
 
 \begin{table}[!t]
-\caption{Per-stage performance (mean over folds).}
+\caption{Deployed cascade: per-stage and end-to-end performance (mean over folds).}
 \label{tab:stages}
 \centering
 \begin{tabular}{@{}llcc@{}}
 \toprule
-Stage & Metric & Group $k$-Fold & LOLO \\
+Stage & Metric & Group $k$-Fold & LOLO (primary) \\
 \midrule
 1 Detection & macro-F1 / ROC-AUC & 0.977 / 0.994 & 0.948 \\
 2 Severity (load-aware) & within-1 / QWK & 0.997 / 0.987 & 0.946 \\
-3 Phase ID & macro-F1 & 0.972 & 0.997 \\
+3 Phase ID & macro-F1 & 0.972 & \textbf{0.997} \\
+\midrule
+End-to-end & within-1 / per-record & 0.949 / 0.927 & 0.916 / 0.918 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.42\textwidth]{figs/fig_roc.pdf}\hfill
+\includegraphics[width=0.42\textwidth]{figs/fig_confusion_detection.pdf}
+\caption{Detection. Left: receiver operating characteristic, overall and per held-out load (overall AUC
+$=0.994$). Right: confusion matrix (group $k$-fold, out-of-fold).}
+\label{fig:roc}
+\end{figure*}
 
 \begin{figure}[!t]
 \centering
@@ -354,33 +368,41 @@ A$\leftrightarrow$B confusion remains. Cross-load (LOLO) phase accuracy is $0.99
 \label{fig:cm3}
 \end{figure}
 
-\begin{figure*}[!t]
+\begin{figure}[!t]
 \centering
-\includegraphics[width=0.42\textwidth]{figs/fig_roc.pdf}\hfill
-\includegraphics[width=0.42\textwidth]{figs/fig_confusion_detection.pdf}
-\caption{Detection. Left: receiver operating characteristic, overall and per held-out load
-(overall AUC $=0.994$). Right: confusion matrix (group $k$-fold, out-of-fold).}
-\label{fig:roc}
-\end{figure*}
+\includegraphics[width=\columnwidth]{figs/results_summary.png}
+\caption{Per-stage and end-to-end performance, in-distribution (group $k$-fold) vs.\ cross-load (LOLO).
+Phase identification is the only metric for which cross-load exceeds in-distribution, reflecting its
+load-invariance.}
+\label{fig:summary}
+\end{figure}
 
-\emph{Load-robustness analysis.} SHAP attribution shows detection and phase ride on the
-\emph{negative-sequence} ratio and angle and on inter-phase RMS differences---load-invariant
-ratios---whereas an initial severity model that used absolute magnitudes collapsed at the no-load
-extreme under LOLO (within-one $0.39$). Restricting severity to load-invariant features and
-supplying the measured load raises LOLO within-one to $0.95$ (Table~\ref{tab:loadaware}); errors are
-almost entirely between adjacent severity levels (Fig.~\ref{fig:cm2}).
+\subsection{Why the Tasks Differ: Cross-Load Analysis and the Load-Aware Fix}
+SHAP attribution shows detection and phase ride on the \emph{negative-sequence} ratio and angle and on
+inter-phase RMS differences---all load-invariant ratios---whereas an initial severity model built on
+absolute magnitudes \emph{collapsed} at the no-load extreme under LOLO (within-one $0.39$), because the
+$|I_2|$ magnitude that encodes severity scales with the operating point. Two complementary remedies
+recover it (Table~\ref{tab:loadaware}). First, restricting severity to dimensionless, load-invariant
+features and $|I_1|$-normalized magnitudes lifts the no-load case from $0.39$ to $0.80$. Second---and
+decisively---supplying the \emph{measured} load (a sensor input, not a label) raises pooled LOLO
+within-one from $0.73$ to $0.95$, since most held-out loads are interpolated between neighbours.
+Severity errors are then almost entirely between adjacent levels (Fig.~\ref{fig:cm2}, QWK $0.987$),
+which validates the ordinal treatment. The per-held-out-load breakdown (Table~\ref{tab:perload})
+localizes the residual difficulty to the light-load extremes (no-load and $20\%$), where a low-severity
+fault current most overlaps the healthy distribution---a difficulty visible \emph{only} under LOLO.
 
 \begin{table}[!t]
-\caption{Severity (within-one-level) under feature choice.}
+\caption{Severity within-one-level accuracy under feature choice. The load-aware model is the deployed
+configuration.}
 \label{tab:loadaware}
 \centering
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-Severity feature set & Group $k$-Fold & LOLO \\
+Severity feature set & Group $k$-Fold & LOLO & No-load \\
 \midrule
-All features (magnitudes incl.) & 0.993 & 0.887 \\
-Load-invariant $+$ $|I_1|$-norm & 0.990 & 0.729 \\
-\textbf{$+$ measured load (proposed)} & \textbf{0.997} & \textbf{0.946} \\
+All features (magnitudes incl.) & 0.993 & 0.887 & 0.39 \\
+Load-invariant $+$ $|I_1|$-norm & 0.990 & 0.729 & 0.80 \\
+\textbf{$+$ measured load (proposed)} & \textbf{0.997} & \textbf{0.946} & \textbf{0.95} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -393,61 +415,8 @@ justifying the ordinal treatment and the within-one-level metric (QWK $=0.987$).
 \label{fig:cm2}
 \end{figure}
 
-\emph{End-to-end cascade.} With the load-aware severity stage, the gated cascade scores a window
-correct if healthy windows are detected healthy and faulty windows have the correct phase and a
-severity within one level: within-one-level accuracy $0.949$ in-distribution and $0.916$ across
-unseen loads (per-recording $0.927$ and $0.918$). Fig.~\ref{fig:summary} summarizes the four headline
-metrics under both protocols.
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{figs/results_summary.png}
-\caption{Per-stage and end-to-end performance, in-distribution (group $k$-fold) vs.\ cross-load
-(LOLO). Phase identification is the only metric for which cross-load exceeds in-distribution,
-reflecting its load-invariance.}
-\label{fig:summary}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{figs/fig_metrics.pdf}
-\caption{Per-stage precision, recall, F1, and accuracy (macro, group $k$-fold out-of-fold).}
-\label{fig:metrics}
-\end{figure}
-
-\emph{Calibration, uncertainty, onset, robustness.} Stage-1 probabilities are well calibrated
-(ECE $=0.021$, Brier $=0.021$). Conformalized quantile regression improves severity-interval coverage
-over naive quantiles, with group-conditional calibration noted as the remedy for residual
-under-coverage. The onset detector flags $100\%$ of faults with no pre-fault false alarms; for
-severity $\geq0.5\%$ the fault is caught within the first faulted cycle. Under additive noise
-(Table~\ref{tab:noise}), severity and phase are essentially flat to $20$~dB SNR while detection is the
-noise-sensitive stage---expected, since separating a small fault from healthy operation is hardest in
-noise.
-
 \begin{table}[!t]
-\caption{Noise robustness (train clean, test noisy; group $k$-fold).}
-\label{tab:noise}
-\centering
-\begin{tabular}{@{}lccc@{}}
-\toprule
-SNR & Detect macro-F1 & Severity within-1 & Phase acc. \\
-\midrule
-clean & 0.977 & 0.986 & 0.958 \\
-40~dB & 0.927 & 0.980 & 0.954 \\
-30~dB & 0.854 & 0.975 & 0.945 \\
-20~dB & 0.792 & 0.971 & 0.939 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The per-held-out-load breakdown (Table~\ref{tab:perload}) localizes the difficulty: detection is
-perfect at the four heavier loads but degrades at no-load (NL) and $20\%$, where the small fault
-current of a low-severity ITSC at light load most overlaps the healthy distribution at an unseen
-operating point---visible only under LOLO. The onset detector (Table~\ref{tab:onset}) flags every
-fault with no pre-fault false alarms and near-instant detection except for the smallest $0.3\%$ faults.
-
-\begin{table}[!t]
-\caption{Per-held-out-load detection (LOLO, macro-F1).}
+\caption{Per-held-out-load detection (LOLO, macro-F1). Difficulty concentrates at light loads.}
 \label{tab:perload}
 \centering
 \begin{tabular}{@{}lcccccc@{}}
@@ -459,65 +428,34 @@ Detection F1 & 0.885 & 0.749 & 1.000 & 1.000 & 1.000 & 1.000 \\
 \end{tabular}
 \end{table}
 
-\begin{table}[!t]
-\caption{Fault-onset detection (sampled cases).}
-\label{tab:onset}
-\centering
-\begin{tabular}{@{}lc@{}}
-\toprule
-Metric & Value \\
-\midrule
-Detection rate & $100\%$ \\
-Pre-fault false-alarm rate & $0\%$ \\
-Median detection delay & $0$~ms (first faulted cycle) \\
-Delay at $\mu\geq0.5\%$ / $\mu=0.3\%$ & $0$~ms / $\approx1.4$~s \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The high phase score ($0.997$) is physically defensible---the faulted phase is encoded in the
-negative-sequence angle, a load- and noise-robust quantity---while the in-distribution-versus-LOLO
-severity gap quantifies how much a conventional evaluation would have over-promised. We therefore
-advocate cross-condition (LOLO) reporting, alongside interpretability evidence, as standard practice.
-The in-distribution figures are consistent with the best reported values for current-based stator
-diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
-contribution here is not a higher in-distribution number but a demonstration of \emph{which} of those
-numbers survive a change of operating point, and a set of mechanisms that make the load-dependent ones
-survive. From a deployment standpoint the pipeline is attractive: it consumes only the
-already-measured three-phase current, runs in well under a millisecond per window on a CPU
-(Fig.~\ref{fig:infer}), exposes interpretable physical quantities (the negative-sequence ratio and
-EPVA factor that drive a decision), and provides calibrated probabilities with an online onset trigger
-suitable for a protection relay. The principal limitation is that the diagnosis results are from
-high-fidelity simulation; the transfer study provides initial real-motor validation, but a full
-instrumented campaign and a voltage-unbalance robustness study remain future work.
-
-\subsection{Comparative Evaluation}
-\emph{Baseline models and added learners.} Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark}
-benchmark eight models on \emph{identical} leakage-safe splits, spanning classical feature-based
-classifiers, a tabular foundation model, and a sequence deep network. On detection the
-physics-feature classifiers cluster high under both protocols (macro-F1 $0.95$--$0.98$); the tabular
-foundation model \emph{TabPFN-2.5} is the strongest \emph{and} the most load-robust, scoring macro-F1
-$0.979$ in-distribution and $0.979$ cross-load (LOLO), whereas gradient boosting falls from $0.976$ to
-$0.948$ across loads. For severity (within-one-level accuracy, the operational ordinal metric),
-TabPFN-2.5 is sharpest in-distribution ($0.997$, with the lowest mean absolute error of $0.033$ level)
-and degrades gracefully across loads ($0.969$), while the MLP attains the best cross-load value
-($0.982$); tree ensembles, by contrast, extrapolate poorly on absolute severity at unseen loads.
-Phase identification is load-robust for nearly all models (LOLO macro-F1 $\geq0.96$), reflecting the
-load-invariant negative-sequence-angle signature. The sequence model \emph{xLSTM}---a compact
-extended-LSTM with exponential gating and a stabilizer state, applied to the raw three-phase
-current---trails the feature-based learners on every task (LOLO macro-F1 $0.890$ detection, within-one
-$0.908$ severity, macro-F1 $0.961$ phase), yet it improves on the earlier raw-signal deep baselines
-(1-D ResNet and PCM-Net, $0.898$ detection; Table~\ref{tab:dl}). This reaffirms the data-efficiency of
-physically engineered features over raw-waveform deep nets in this data regime; the detection-only
-five-fold view is shown in Fig.~\ref{fig:modelcomp}. The feature pipeline is also lightweight: feature
-extraction plus XGBoost inference costs $\approx0.34$~ms per window on CPU, comfortably real-time
-(Fig.~\ref{fig:infer}).
+\subsection{Eight-Model Benchmark}
+Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark} benchmark eight models on \emph{identical}
+leakage-safe splits, spanning classical feature classifiers, a tabular foundation model, and a sequence
+deep network. The first observation is that the \emph{in-distribution task is saturated}: the six
+feature classifiers fall within $\pm0.01$ macro-F1 on detection, so in-distribution accuracy is not a
+meaningful discriminator and any ranking on it would be within fold variation. The honest comparison is
+therefore cross-load. There, three results stand out. (1) The tabular foundation model
+\emph{TabPFN-2.5} is the strongest detector and uniquely load-robust, scoring macro-F1 $0.979$
+in-distribution \emph{and} $0.979$ cross-load, whereas gradient boosting drops from $0.976$ to $0.948$;
+it also gives the sharpest in-distribution severity ($0.997$ within-one, MAE $0.033$ level, the lowest
+of all models) and degrades gracefully across loads ($0.969$). (2) Severity is the task that separates
+models: tree ensembles extrapolate poorly to unseen loads (random forest LOLO within-one $0.688$),
+while the MLP and SVM remain robust ($0.982$, $0.975$). (3) Faulted phase is load-robust for nearly
+every model (LOLO macro-F1 $\geq0.96$), confirming that the negative-sequence-angle signature is
+model-agnostic. The raw-signal \emph{xLSTM} trails the feature learners on every task (LOLO macro-F1
+$0.890$ detection, within-one $0.908$ severity, $0.961$ phase) yet improves on the earlier raw-signal
+deep baselines (1-D ResNet and PCM-Net, $0.898$ detection; Table~\ref{tab:dl}), reaffirming the
+data-efficiency of physically engineered features over raw-waveform deep nets in this regime. The
+feature pipeline is also lightweight---feature extraction plus XGBoost inference costs
+$\approx0.34$~ms per window on CPU (Fig.~\ref{fig:infer}), and TabPFN-2.5 needs no task-specific
+training---so the practitioner can choose foundation-model robustness or gradient-boosted speed without
+sacrificing accuracy.
 
 \begin{table*}[!t]
 \caption{Full model benchmark on identical leakage-safe splits: StratifiedGroupKFold (GK,
 in-distribution) and Leave-One-Load-Out (LOLO, cross-load, primary). Detection and phase report
-macro-F1; severity reports within-one-level accuracy. Best per column in bold. TabPFN-2.5 and xLSTM
-are added in this work.}
+macro-F1; severity reports within-one-level accuracy. Best per column in bold. TabPFN-2.5 and xLSTM are
+added in this work.}
 \label{tab:benchmark}
 \centering
 \footnotesize
@@ -544,18 +482,10 @@ xLSTM               & 0.957 & 0.890 & 0.982 & 0.908 & 0.921 & 0.961 \\
 \includegraphics[width=0.92\textwidth]{figs/fig_benchmark.pdf}
 \caption{Model benchmark across the three diagnostic tasks under both protocols (GroupKFold vs.\ LOLO).
 Hatched bars denote the two models added in this work (TabPFN-2.5, xLSTM). Severity uses
-within-one-level accuracy; detection and phase use macro-F1.}
+within-one-level accuracy; detection and phase use macro-F1. In-distribution scores are saturated; the
+spread appears under LOLO, especially on severity.}
 \label{fig:benchmark}
 \end{figure*}
-
-\begin{figure}[!t]
-\centering
-\includegraphics[width=\columnwidth]{figs/fig_model_comparison.pdf}
-\caption{Baseline model comparison on detection (five-fold mean macro-F1). Feature-based ML (blue)
-clusters high; raw-signal deep models (orange) trade in-distribution detection for their cross-load
-severity edge.}
-\label{fig:modelcomp}
-\end{figure}
 
 \begin{figure}[!t]
 \centering
@@ -566,7 +496,7 @@ their total, and the 1-D CNN.}
 \end{figure}
 
 \begin{table}[!t]
-\caption{Feature-based cascade vs.\ deep baseline.}
+\caption{Feature-based cascade vs.\ a raw-signal deep baseline.}
 \label{tab:dl}
 \centering
 \begin{tabular}{@{}lcc@{}}
@@ -581,18 +511,23 @@ Severity within-1 (group $k$-fold) & 0.990 & 1.000 \\
 \end{tabular}
 \end{table}
 
-\emph{Load-robustness mechanisms.} Table~\ref{tab:mechanisms} evaluates the four proposed mechanisms
-under LOLO. SCST raises held-out-load severity within-one from $0.75$ (raw-phase Stockwell) to $1.0$
-but, being magnitude-based, cannot localize phase (the negative-sequence angle is used instead).
-LIR-mRMR beats plain mRMR at compact size ($k{=}10$ within-one $0.848$ vs.\ $0.740$) with roughly half
-the cross-load feature drift. PCM-Net's FiLM load-conditioning lifts LOLO severity within-one from
-$0.932$ to $\mathbf{0.982}$---the best in the study, exceeding the load-aware gradient-boosted model
-($0.946$); consistent with the physics, FiLM does not help the load-invariant phase task. PADA closes
-the simulation-to-experiment gap: a naively transferred detector scores macro-F1 $0.48$, unsupervised
-physics-anchored alignment reaches $0.50$ on phase, and few-shot calibration with two real
-repetitions recovers detection to $\mathbf{0.98}$. The physics-constrained generator enforces current
-balance exactly but did not yield severity-controllable samples under our budget, an honest negative
-that motivates a stronger conditional generator.
+\subsection{Load-Robustness Mechanisms (Ablations)}
+Table~\ref{tab:mechanisms} ablates the four proposed mechanisms under LOLO, the protocol on which each
+is designed to help. The \emph{SCST} representation raises held-out-load severity within-one from $0.75$
+(raw-phase Stockwell) to $1.0$; consistent with the physics, its magnitude tensor cannot localize phase,
+which is why phase uses the negative-sequence angle instead. \emph{LIR-mRMR} beats plain mRMR at compact
+size ($k{=}10$ within-one $0.848$ vs.\ $0.740$) with roughly half the cross-load feature drift, yielding
+a sparse, interpretable subset. \emph{PCM-Net}'s FiLM load-conditioning lifts LOLO severity within-one
+from $0.932$ to $\mathbf{0.982}$---the best in the study, exceeding even the load-aware gradient-boosted
+model ($0.946$); FiLM does not help the load-invariant phase task, exactly as the physics predicts,
+which is itself evidence the mechanism does what it claims. \emph{PADA} closes the
+simulation-to-experiment gap on the public real-motor dataset: a naively transferred detector scores
+macro-F1 $0.48$ (it collapses to predicting all-faulty under covariate shift), physics-anchored
+unsupervised alignment reaches $0.50$ on the hard phase task, and few-shot calibration with two real
+repetitions recovers detection to $\mathbf{0.98}$. Finally, the physics-constrained generator enforces
+current balance exactly (residual $0.000$ vs.\ $0.991$ for an unconstrained generator) but did not yield
+severity-controllable samples under our compute budget---an honest negative result that we report to
+motivate a stronger conditional generator rather than omit.
 
 \begin{table}[!t]
 \caption{Load-robustness mechanisms (LOLO).}
@@ -612,22 +547,102 @@ PC-Diff & current-balance exact; generation not controllable (negative) \\
 \end{tabular}
 \end{table}
 
+\subsection{Calibration, Onset, Noise, and Training Behaviour}
+Stage-1 probabilities are well calibrated (ECE $=0.021$, Brier $=0.021$), so the detector's confidence
+can gate maintenance actions directly. Conformalized quantile regression improves severity-interval
+coverage over naive quantiles, with group-conditional calibration noted as the remedy for residual
+under-coverage. The onset detector (Table~\ref{tab:onset}) flags $100\%$ of faults with no pre-fault
+false alarms; for severity $\geq0.5\%$ the fault is caught within the first faulted cycle, and only the
+smallest $0.3\%$ faults incur a lag. Under additive noise (Table~\ref{tab:noise}), severity and phase
+are essentially flat to $20$~dB SNR while detection is the noise-sensitive stage---expected, since
+separating a small fault from healthy operation is hardest in noise. Training is stable for both the
+gradient-boosted and deep models (Fig.~\ref{fig:learning}), and the per-stage precision/recall/F1
+breakdown is given in Fig.~\ref{fig:metrics}.
+
+\begin{table}[!t]
+\caption{Noise robustness (train clean, test noisy; group $k$-fold).}
+\label{tab:noise}
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+SNR & Detect macro-F1 & Severity within-1 & Phase acc. \\
+\midrule
+clean & 0.977 & 0.986 & 0.958 \\
+40~dB & 0.927 & 0.980 & 0.954 \\
+30~dB & 0.854 & 0.975 & 0.945 \\
+20~dB & 0.792 & 0.971 & 0.939 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[!t]
+\caption{Fault-onset detection (sampled cases).}
+\label{tab:onset}
+\centering
+\begin{tabular}{@{}lc@{}}
+\toprule
+Metric & Value \\
+\midrule
+Detection rate & $100\%$ \\
+Pre-fault false-alarm rate & $0\%$ \\
+Median detection delay & $0$~ms (first faulted cycle) \\
+Delay at $\mu\geq0.5\%$ / $\mu=0.3\%$ & $0$~ms / $\approx1.4$~s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.42\textwidth]{figs/fig_learning_xgb.pdf}\hfill
+\includegraphics[width=0.42\textwidth]{figs/fig_learning_cnn.pdf}
+\caption{Training behaviour. Left: XGBoost detection convergence (train/validation log-loss vs.\
+boosting round). Right: 1-D CNN learning curves (training loss and validation macro-F1 vs.\ epoch),
+showing stable convergence without over-fitting.}
+\label{fig:learning}
+\end{figure*}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figs/fig_metrics.pdf}
+\caption{Per-stage precision, recall, F1, and accuracy (macro, group $k$-fold out-of-fold).}
+\label{fig:metrics}
+\end{figure}
+
+\subsection{Discussion: Positioning and Deployment}
+The in-distribution figures are consistent with the best reported values for current-based stator
+diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
+contribution here is not a higher in-distribution number---which the saturated benchmark shows is no
+longer informative---but a demonstration of \emph{which} of those numbers survive a change of operating
+point, and a set of mechanisms that make the load-dependent ones survive. The in-distribution-versus-LOLO
+severity gap (within-one $0.99$ vs.\ $0.39$ before the load-aware fix) quantifies how much a conventional
+evaluation would have over-promised; we therefore advocate cross-condition (LOLO) reporting, alongside
+interpretability evidence, as standard practice. From a deployment standpoint the pipeline is attractive:
+it consumes only the already-measured three-phase current, runs in well under a millisecond per window on
+a CPU, exposes interpretable physical quantities (the negative-sequence ratio and EPVA factor that drive
+a decision), provides calibrated probabilities with an online onset trigger suitable for a protection
+relay, and offers a foundation-model option (TabPFN-2.5) that is both the most load-robust detector and
+training-free. The principal limitation is that the diagnosis results are from high-fidelity simulation;
+the transfer study provides initial real-motor validation, but a full instrumented campaign and a
+supply-voltage-unbalance robustness study remain future work.
+
 \section{Conclusion}
 We presented a physics-informed, leakage-safe machine-learning framework for stator inter-turn fault
-diagnosis in induction motors that performs onset detection, healthy/faulty detection, ordinal
-severity estimation, and faulted-phase identification from the three-phase stator current. By
-adopting Leave-One-Load-Out evaluation we showed that detection and faulted-phase identification are
-intrinsically load-robust, while absolute severity is load-dependent and is recovered to within-one
-accuracy of $0.95$ across unseen loads once the model is made load-aware. Four mechanisms---a
-sequence-component Stockwell tensor, a load-invariance-regularized feature selection, a
-FiLM-conditioned multi-task network, and physics-anchored domain adaptation---each independently
-improve cross-load performance, and the framework is validated simulation-to-experiment on a public
-real-motor dataset. The end-to-end cascade attains within-one accuracy of $0.95$ in-distribution and
-$0.92$ across unseen loads, with calibrated detection, graceful noise degradation, and reliable onset
-detection. Future work includes a stronger conditional generator for physics-constrained
-augmentation, full selective-state-space and Kolmogorov--Arnold backbones, an experimental campaign
-with supply voltage-unbalance rejection, and group-conditional conformal calibration of the severity
-intervals. All code, dataset splits, and result artifacts are released for reproducibility.
+diagnosis in induction motors that performs onset detection, healthy/faulty detection, ordinal severity
+estimation, and faulted-phase identification from the three-phase stator current. By adopting
+Leave-One-Load-Out evaluation we showed that detection and faulted-phase identification are intrinsically
+load-robust, while absolute severity is load-dependent and is recovered to within-one accuracy of $0.95$
+across unseen loads once the model is made load-aware. A controlled eight-model benchmark---including the
+tabular foundation model TabPFN-2.5 and an xLSTM sequence network---demonstrated that the in-distribution
+task is saturated and that cross-load behaviour is the meaningful axis, on which TabPFN-2.5 is the most
+load-robust detector. Four mechanisms (a sequence-component Stockwell tensor, a load-invariance-regularized
+feature selection, a FiLM-conditioned multi-task network, and physics-anchored domain adaptation) each
+independently improved cross-load performance, and the framework was validated simulation-to-experiment on
+a public real-motor dataset. The end-to-end cascade attains within-one accuracy of $0.95$ in-distribution
+and $0.92$ across unseen loads, with calibrated detection, graceful noise degradation, and reliable onset
+detection. Future work includes a stronger conditional generator for physics-constrained augmentation,
+full selective-state-space and Kolmogorov--Arnold backbones, an experimental campaign with supply
+voltage-unbalance rejection, and group-conditional conformal calibration of the severity intervals. All
+code, dataset splits, and result artifacts are released for reproducibility.
 
 \begin{thebibliography}{1}
 \bibitem{penman1994} J. Penman, H. G. Sedding, B. A. Lloyd, and W. T. Fink, ``Detection of
@@ -660,6 +675,10 @@ strategy for induction motors using weighted probability ensemble deep learning,
 Access}, vol. 13, pp. 106958--106973, 2025.
 \bibitem{chen2016} T. Chen and C. Guestrin, ``XGBoost: A scalable tree boosting system,'' in
 \emph{Proc. ACM SIGKDD}, 2016, pp. 785--794.
+\bibitem{hollmann2025} N. Hollmann \emph{et al.}, ``Accurate predictions on small data with a tabular
+foundation model,'' \emph{Nature}, vol. 637, pp. 319--326, 2025.
+\bibitem{beck2024} M. Beck \emph{et al.}, ``xLSTM: Extended long short-term memory,'' in \emph{Proc.
+NeurIPS}, 2024.
 \bibitem{lundberg2017} S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting model
 predictions,'' in \emph{Proc. NeurIPS}, 2017, pp. 4765--4774.
 \bibitem{romano2019} Y. Romano, E. Patterson, and E. Candès, ``Conformalized quantile regression,''

@@ -492,12 +492,61 @@ high-fidelity simulation; the transfer study provides initial real-motor validat
 instrumented campaign and a voltage-unbalance robustness study remain future work.
 
 \subsection{Comparative Evaluation}
-\emph{Baseline models.} On detection (five-fold mean macro-F1), the physics-feature classifiers
-cluster high---LogReg $0.979$, SVM-RBF $0.978$, KNN $0.982$, MLP $0.979$, Random Forest $0.978$,
-XGBoost $0.978$---while raw-signal deep models are lower (1-D ResNet $0.898$, PCM-Net $0.898$),
-consistent with the data-efficiency of physically engineered features (Table~\ref{tab:dl}). The
-feature pipeline is also lightweight: feature extraction plus XGBoost inference costs $\approx0.34$~ms
-per window on CPU, comfortably real-time (Fig.~\ref{fig:modelcomp}, Fig.~\ref{fig:infer}).
+\emph{Baseline models and added learners.} Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark}
+benchmark eight models on \emph{identical} leakage-safe splits, spanning classical feature-based
+classifiers, a tabular foundation model, and a sequence deep network. On detection the
+physics-feature classifiers cluster high under both protocols (macro-F1 $0.95$--$0.98$); the tabular
+foundation model \emph{TabPFN-2.5} is the strongest \emph{and} the most load-robust, scoring macro-F1
+$0.979$ in-distribution and $0.979$ cross-load (LOLO), whereas gradient boosting falls from $0.976$ to
+$0.948$ across loads. For severity (within-one-level accuracy, the operational ordinal metric),
+TabPFN-2.5 is sharpest in-distribution ($0.997$, with the lowest mean absolute error of $0.033$ level)
+and degrades gracefully across loads ($0.969$), while the MLP attains the best cross-load value
+($0.982$); tree ensembles, by contrast, extrapolate poorly on absolute severity at unseen loads.
+Phase identification is load-robust for nearly all models (LOLO macro-F1 $\geq0.96$), reflecting the
+load-invariant negative-sequence-angle signature. The sequence model \emph{xLSTM}---a compact
+extended-LSTM with exponential gating and a stabilizer state, applied to the raw three-phase
+current---trails the feature-based learners on every task (LOLO macro-F1 $0.890$ detection, within-one
+$0.908$ severity, macro-F1 $0.961$ phase), yet it improves on the earlier raw-signal deep baselines
+(1-D ResNet and PCM-Net, $0.898$ detection; Table~\ref{tab:dl}). This reaffirms the data-efficiency of
+physically engineered features over raw-waveform deep nets in this data regime; the detection-only
+five-fold view is shown in Fig.~\ref{fig:modelcomp}. The feature pipeline is also lightweight: feature
+extraction plus XGBoost inference costs $\approx0.34$~ms per window on CPU, comfortably real-time
+(Fig.~\ref{fig:infer}).
+
+\begin{table*}[!t]
+\caption{Full model benchmark on identical leakage-safe splits: StratifiedGroupKFold (GK,
+in-distribution) and Leave-One-Load-Out (LOLO, cross-load, primary). Detection and phase report
+macro-F1; severity reports within-one-level accuracy. Best per column in bold. TabPFN-2.5 and xLSTM
+are added in this work.}
+\label{tab:benchmark}
+\centering
+\footnotesize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{2}{c}{Detection (macro-F1)} & \multicolumn{2}{c}{Severity (within-1)} & \multicolumn{2}{c}{Phase (macro-F1)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Model & GK & LOLO & GK & LOLO & GK & LOLO \\
+\midrule
+Logistic Regression & 0.978 & 0.978 & \textbf{0.997} & 0.971 & 0.970 & 0.920 \\
+SVM-RBF             & 0.978 & 0.977 & 0.991 & 0.975 & \textbf{0.984} & 0.967 \\
+$k$-NN              & 0.977 & 0.977 & 0.937 & 0.942 & 0.982 & 0.981 \\
+MLP                 & 0.978 & 0.978 & \textbf{0.997} & \textbf{0.982} & 0.956 & 0.981 \\
+Random Forest       & 0.978 & \textbf{0.979} & 0.985 & 0.688 & 0.965 & \textbf{0.997} \\
+XGBoost             & 0.976 & 0.948 & 0.990 & 0.943 & 0.976 & \textbf{0.997} \\
+TabPFN-2.5          & \textbf{0.979} & \textbf{0.979} & \textbf{0.997} & 0.969 & 0.968 & 0.991 \\
+xLSTM               & 0.957 & 0.890 & 0.982 & 0.908 & 0.921 & 0.961 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_benchmark.pdf}
+\caption{Model benchmark across the three diagnostic tasks under both protocols (GroupKFold vs.\ LOLO).
+Hatched bars denote the two models added in this work (TabPFN-2.5, xLSTM). Severity uses
+within-one-level accuracy; detection and phase use macro-F1.}
+\label{fig:benchmark}
+\end{figure*}
 
 \begin{figure}[!t]
 \centering

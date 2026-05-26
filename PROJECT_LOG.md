@@ -401,3 +401,18 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   confusion; ROC+detection-confusion panel; per-stage metrics; XGBoost convergence + 1D-CNN learning curves;
   results summary; model comparison; inference efficiency). Expanded methodology overview + results discussion.
   Manuscript now 8 pages double-column Times, compiles clean. Regenerated two-column Word `manuscript_ieee_final.docx`.
+- **2026-05-26 — Checkpoint 24:** **Added TabPFN-2.5 + xLSTM to the model benchmark** (`benchmark_models.py`,
+  `xlstm_model.py`, `benchmark_report.py`). Unified harness evaluates 8 models (LogReg, SVM-RBF, KNN, MLP, RF,
+  XGBoost, **TabPFN-2.5**, **xLSTM**) on detection/severity/phase under IDENTICAL leakage-safe splits
+  (StratifiedGroupKFold + LOLO); severity scored as 7-level ordinal classification (acc/macro-F1/within1/mae/qwk).
+  TabPFN-2.5 = tabular foundation model on the 72 features (needs free TABPFN_TOKEN from ux.priorlabs.ai; gated
+  Prior-Labs/tabpfn_2_5 checkpoint; CPU run uses context=2000, n_estimators=2). xLSTM = compact CPU PyTorch
+  sLSTM (exponential gating + stabilizer) on decimated 3-phase windows. KEY RESULTS:
+  · Detection: **TabPFN-2.5 best & most load-robust** (GK F1 0.979 / LOLO F1 0.979, vs XGBoost LOLO 0.948); xLSTM weakest (LOLO 0.890).
+  · Severity within-1: TabPFN-2.5 GK 0.997 (MAE 0.033, lowest) / LOLO 0.969; MLP LOLO 0.982 best cross-load; xLSTM LOLO 0.908.
+  · Phase: TabPFN-2.5 LOLO 0.991 (≈ RF/XGB 0.997); xLSTM LOLO 0.961.
+  Caught & fixed a label-leakage bug (helper cols _sevrank/_phrank leaking into X -> acc 1.0) before the full run.
+  xLSTM full run ~8 h CPU (per-timestep recurrence); TabPFN-2.5 ~49 min. All results saved to
+  `dataset/benchmark_results.json` + `dataset/benchmark_table.csv`; comparison in `dataset/benchmark_comparison.md`;
+  figure `figures_svg/fig_benchmark.svg` (+ manuscript/figs/fig_benchmark.pdf). 8-h classical+xLSTM results
+  backed up (`dataset/benchmark_*.full.bak.*`). ResNet-1D/PCM-Net listed separately (partial/single-split protocols).

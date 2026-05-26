@@ -1,0 +1,62 @@
+{
+  "XGBoost": {
+    "baseline": {
+      "groupkfold": {
+        "window_f1": 0.6361449518880712,
+        "record_f1": 0.850369812426116,
+        "window_acc": 0.6359649122807017,
+        "record_acc": 0.85
+      },
+      "loro": {
+        "window_f1": 0.7075931120461275,
+        "record_f1": 0.9495622263914947,
+        "window_acc": 0.7070175438596491,
+        "record_acc": 0.95
+      }
+    },
+    "invariant+asym": {
+      "groupkfold": {
+        "window_f1": 0.6378086713069154,
+        "record_f1": 0.8813775643641004,
+        "window_acc": 0.637719298245614,
+        "record_acc": 0.8833333333333333
+      },
+      "loro": {
+        "window_f1": 0.7066049349356733,
+        "record_f1": 0.9328449328449328,
+        "window_acc": 0.706140350877193,
+        "record_acc": 0.9333333333333333
+      }
+    }
+  },
+  "RandomForest": {
+    "baseline": {
+      "groupkfold": {
+        "window_f1": 0.653753313002326,
+        "record_f1": 0.867463829520133,
+        "window_acc": 0.6535087719298246,
+        "record_acc": 0.8666666666666667
+      },
+      "loro": {
+        "window_f1": 0.7225057305793307,
+        "record_f1": 0.9337294142172191,
+        "window_acc": 0.7219298245614035,
+        "record_acc": 0.9333333333333333
+      }
+    },
+    "invariant+asym": {
+      "groupkfold": {
+        "window_f1": 0.6438693697897225,
+        "record_f1": 0.9180554247873709,
+        "window_acc": 0.643859649122807,
+        "record_acc": 0.9166666666666666
+      },
+      "loro": {
+        "window_f1": 0.7100854430649973,
+        "record_f1": 0.8836114676936243,
+        "window_acc": 0.7087719298245614,
+        "record_acc": 0.8833333333333333
+      }
+    }
+  }
+}

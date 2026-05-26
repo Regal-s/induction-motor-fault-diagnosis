@@ -450,3 +450,12 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   contributions, discussion, conclusion. main.pdf now 10 pages, clean. regen_docx.py generalized to re-insert BOTH
   grouped tables; Word doc regenerated (22 tables, 14 images). Closes the hardware-validation gap (detection yes,
   phase is the honest weak point).
+- **2026-05-26 — Checkpoint 28:** **Hardware phase F1 largely recovered via per-recording aggregation.**
+  `phase_hw_improve.py` tested two fixes for the weak real-data phase: (A) per-recording majority vote, (B)
+  reference-invariant features (relative angle + reference-free per-phase asymmetry "which phase deviates most",
+  dropping absolute angle). RESULT: **(A) is the dominant lever** — XGBoost LORO phase F1 0.708 (per-window) ->
+  **0.950 (per-recording)**; GK 0.636 -> 0.850; RandomForest similar (0.93/0.87). **(B) did NOT help** beyond
+  voting (baseline all-features ties/wins), localizing the cause to per-window estimator variance at 1 kHz, not
+  feature design — reported honestly. Integrated into IV-G (revised 3rd finding + table caption note) and
+  abstract/discussion/conclusion: phase gap reframed from "0.97->0.72" to "per-window 0.72, per-recording 0.93-0.95".
+  main.pdf 10 pp clean; Word regenerated. `dataset/phase_hw_improve.json`.

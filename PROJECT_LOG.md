@@ -416,3 +416,22 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   `dataset/benchmark_results.json` + `dataset/benchmark_table.csv`; comparison in `dataset/benchmark_comparison.md`;
   figure `figures_svg/fig_benchmark.svg` (+ manuscript/figs/fig_benchmark.pdf). 8-h classical+xLSTM results
   backed up (`dataset/benchmark_*.full.bak.*`). ResNet-1D/PCM-Net listed separately (partial/single-split protocols).
+- **2026-05-26 — Checkpoint 25:** **Benchmark table + figure embedded in both manuscripts; committed & pushed.**
+  Embedded the 8-model benchmark table (`tab:benchmark`) + grouped-bar figure (`fig:benchmark`) into the LaTeX
+  manuscript (`manuscript/main.tex`, Comparative Evaluation §IV-C) — recompiled `main.pdf` clean (8 pages, all refs
+  resolved). Mirrored the same table + figure into the Word version (`manuscript_ieee_final.docx`) via new
+  `update_docx_benchmark.py` (surgical python-docx insert; `benchmark_report.py` now also emits a raster PNG for Word).
+  Two commits on `master`: `019aec2` (benchmark code + results + LaTeX embed + this log) and `03eaae0` (Word update).
+  **Pushed to GitHub** `Regal-s/induction-motor-fault-diagnosis` (`bc0c582..03eaae0  master -> master`). Added a
+  `Bash(git push origin master)` allow-rule to `.claude/settings.local.json`. Not committed (intentional): pre-existing
+  figures_svg/papers/scst changes, `*.full.bak.*` backups, `~$*.docx` lock files.
+- **2026-05-26 — Checkpoint 26:** **Full manuscript rewrite + Word doc regenerated to match.** Rewrote
+  `manuscript/main.tex`: added explicit "Summary of Contributions" enumerating the delivered system; restructured
+  Results into 8 subsections led by the cross-load (LOLO) finding; reframed in-distribution metric saturation as a
+  finding (feature models within ±0.01 macro-F1) so LOLO is the honest discriminator; added headline table with an
+  end-to-end row and a no-load column on the load-aware-severity fix (0.39→0.80→0.95); cited TabPFN (Nature 2025) +
+  xLSTM (NeurIPS 2024). Recompiled clean (9 pages, all refs/citations resolved). Regenerated `manuscript_ieee_final.docx`
+  via new `regen_docx.py` (PyMuPDF rasterizes figs→PNG since Word can't embed PDF; pandoc latex→docx; re-applies
+  2-column; re-inserts the grouped-header 8-model benchmark table that pandoc drops). Commits `019aec2`/`03eaae0`/`85fa823`
+  all pushed to `master`. Open: Word wide figures capped to column width (small); experimental validation + significance
+  tests remain the Transactions-readiness gap.

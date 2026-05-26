@@ -109,10 +109,11 @@ def main():
     fig.suptitle("Model benchmark (identical splits; * = newly added)", y=1.02)
     fig.tight_layout()
     fig.savefig(OUT / "fig_benchmark.svg", format="svg", bbox_inches="tight")
+    fig.savefig(OUT / "fig_benchmark.png", dpi=200, bbox_inches="tight")  # raster for Word
     (ROOT / "manuscript" / "figs").mkdir(parents=True, exist_ok=True)
     fig.savefig(ROOT / "manuscript" / "figs" / "fig_benchmark.pdf", bbox_inches="tight")
     plt.close(fig)
-    print("wrote figures_svg/fig_benchmark.svg (+ pdf)")
+    print("wrote figures_svg/fig_benchmark.svg (+ png + pdf)")
 
 
 if __name__ == "__main__":

@@ -511,6 +511,41 @@ Severity within-1 (group $k$-fold) & 0.990 & 1.000 \\
 \end{tabular}
 \end{table}
 
+\emph{Statistical significance.} To test whether these differences are real rather than fold noise we
+follow the Demšar protocol~\cite{demsar2006}: a Friedman omnibus test across the seven feature/foundation
+models on the per-fold (group $k$-fold, five blocks) and per-load (LOLO, six blocks) primary scores, with
+Holm-corrected pairwise Wilcoxon signed-rank tests (Table~\ref{tab:significance}). Two conclusions follow.
+First, \emph{in-distribution detection and phase identification show no significant model differences}
+($p=0.26$ and $p=0.76$), which quantitatively confirms that the in-distribution task is saturated---the
+choice among feature models cannot be justified on in-distribution accuracy. Second, the differences that
+matter \emph{are} significant: absolute severity differs across models under both protocols ($p=0.0013$
+in-distribution, $p=0.0008$ cross-load) and detection differs across loads ($p=0.050$), driven by the
+gradient-boosted model's cross-load drop and the tree ensembles' poor severity extrapolation (Random
+Forest LOLO within-one $0.70$). By average Friedman rank, TabPFN-2.5 and the MLP are strongest on
+cross-load severity and the tree ensembles weakest. With only five-to-six blocks, however, no
+\emph{pairwise} comparison survives Holm correction (smallest adjusted $p=0.19$); the omnibus is therefore
+the reliable signal, and localizing pairwise differences would require more folds or additional operating
+points---a limitation we flag rather than over-claim from.
+
+\begin{table}[!t]
+\caption{Significance across the seven feature/foundation models (Friedman omnibus on per-fold / per-load
+primary scores; detection and phase use macro-F1, severity within-one-level accuracy).}
+\label{tab:significance}
+\centering
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Task & Protocol & $\chi^2$ & $p$ & Outcome \\
+\midrule
+Detection & group $k$-fold & 7.66 & 0.264 & n.s. \\
+Detection & LOLO & 12.61 & 0.050 & \textbf{sig.} \\
+Severity & group $k$-fold & 21.84 & 0.0013 & \textbf{sig.} \\
+Severity & LOLO & 22.85 & 0.0008 & \textbf{sig.} \\
+Phase & group $k$-fold & 3.35 & 0.764 & n.s. \\
+Phase & LOLO & 6.00 & 0.423 & n.s. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Load-Robustness Mechanisms (Ablations)}
 Table~\ref{tab:mechanisms} ablates the four proposed mechanisms under LOLO, the protocol on which each
 is designed to help. The \emph{SCST} representation raises held-out-load severity within-one from $0.75$
@@ -696,6 +731,8 @@ recognition,'' in \emph{Proc. IEEE CVPR}, 2016, pp. 770--778.
 spaces,'' \emph{arXiv:2312.00752}, 2023.
 \bibitem{liu2025} Z. Liu \emph{et al.}, ``KAN: Kolmogorov--Arnold networks,'' in \emph{Proc. ICLR},
 2025.
+\bibitem{demsar2006} J. Demšar, ``Statistical comparisons of classifiers over multiple data sets,''
+\emph{J. Mach. Learn. Res.}, vol. 7, pp. 1--30, 2006.
 \bibitem{perez2018} E. Perez, F. Strub, H. de Vries, V. Dumoulin, and A. Courville, ``FiLM: Visual
 reasoning with a general conditioning layer,'' in \emph{Proc. AAAI}, 2018.
 \bibitem{ibarram} M. Ibarra-Manzano \emph{et al.}, ``ITSC: Inter-turn short-circuit fault dataset

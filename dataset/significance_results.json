@@ -1,0 +1,638 @@
+{
+  "models": [
+    "LogReg",
+    "SVM-RBF",
+    "KNN",
+    "MLP",
+    "RandomForest",
+    "XGBoost",
+    "TabPFN-2.5"
+  ],
+  "results": {
+    "detection": {
+      "groupkfold": {
+        "n_blocks": 5,
+        "friedman": {
+          "stat": 7.65625,
+          "p": 0.26438422026883934
+        },
+        "avg_rank": {
+          "LogReg": 4.2,
+          "SVM-RBF": 4.7,
+          "KNN": 5.5,
+          "MLP": 3.7,
+          "RandomForest": 3.5,
+          "XGBoost": 3.7,
+          "TabPFN-2.5": 2.7
+        },
+        "means": {
+          "LogReg": 0.9788410805170613,
+          "SVM-RBF": 0.9789667262917126,
+          "KNN": 0.9779812455464585,
+          "MLP": 0.9791497102400127,
+          "RandomForest": 0.9784201010032717,
+          "XGBoost": 0.9771960505723885,
+          "TabPFN-2.5": 0.9795135439269933
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.125,
+              "p_holm": 0.75,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.125,
+              "p_holm": 0.75,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ]
+        }
+      },
+      "lolo": {
+        "n_blocks": 6,
+        "friedman": {
+          "stat": 12.610778443113764,
+          "p": 0.04965046282963866
+        },
+        "avg_rank": {
+          "LogReg": 4.333333333333333,
+          "SVM-RBF": 5.083333333333333,
+          "KNN": 5.083333333333333,
+          "MLP": 3.9166666666666665,
+          "RandomForest": 2.9166666666666665,
+          "XGBoost": 3.75,
+          "TabPFN-2.5": 2.9166666666666665
+        },
+        "means": {
+          "LogReg": 0.9799283657189176,
+          "SVM-RBF": 0.9796393788317568,
+          "KNN": 0.9796393788317568,
+          "MLP": 0.9802284188470131,
+          "RandomForest": 0.9809326258022711,
+          "XGBoost": 0.9389012337756638,
+          "TabPFN-2.5": 0.9809326258022711
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 0.25,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.25,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.25,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ]
+        }
+      }
+    },
+    "severity": {
+      "groupkfold": {
+        "n_blocks": 5,
+        "friedman": {
+          "stat": 21.84189723320159,
+          "p": 0.0012933893433317951
+        },
+        "avg_rank": {
+          "LogReg": 2.9,
+          "SVM-RBF": 5.0,
+          "KNN": 6.8,
+          "MLP": 2.2,
+          "RandomForest": 4.6,
+          "XGBoost": 4.6,
+          "TabPFN-2.5": 1.9
+        },
+        "means": {
+          "LogReg": 0.9967138334302514,
+          "SVM-RBF": 0.9911080396998632,
+          "KNN": 0.9364358894404321,
+          "MLP": 0.996884409123215,
+          "RandomForest": 0.9849389416553596,
+          "XGBoost": 0.9903271333900795,
+          "TabPFN-2.5": 0.9969696969696968
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 0.25,
+              "p_holm": 0.75,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.8125,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.0625,
+              "p_holm": 0.375,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.0625,
+              "p_holm": 0.375,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.0625,
+              "p_holm": 0.375,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 0.125,
+              "p_holm": 0.5,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 0.125,
+              "p_holm": 0.5,
+              "sig": false
+            }
+          ]
+        }
+      },
+      "lolo": {
+        "n_blocks": 6,
+        "friedman": {
+          "stat": 22.851485148514854,
+          "p": 0.0008477767302657982
+        },
+        "avg_rank": {
+          "LogReg": 2.5833333333333335,
+          "SVM-RBF": 3.3333333333333335,
+          "KNN": 5.0,
+          "MLP": 1.9166666666666667,
+          "RandomForest": 6.75,
+          "XGBoost": 4.75,
+          "TabPFN-2.5": 3.6666666666666665
+        },
+        "means": {
+          "LogReg": 0.9696510703046651,
+          "SVM-RBF": 0.9745755092160322,
+          "KNN": 0.9427603140021441,
+          "MLP": 0.981509146868624,
+          "RandomForest": 0.7013694366635543,
+          "XGBoost": 0.9384652626482692,
+          "TabPFN-2.5": 0.9667565791748798
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 0.0625,
+              "p_holm": 0.375,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 0.3125,
+              "p_holm": 0.625,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 0.625,
+              "p_holm": 0.9375,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.4375,
+              "p_holm": 0.9375,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 0.21875,
+              "p_holm": 0.875,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.125,
+              "p_holm": 0.625,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 0.03125,
+              "p_holm": 0.1875,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 0.3125,
+              "p_holm": 0.9375,
+              "sig": false
+            }
+          ]
+        }
+      }
+    },
+    "phase": {
+      "groupkfold": {
+        "n_blocks": 5,
+        "friedman": {
+          "stat": 3.3480662983425367,
+          "p": 0.7640616598247113
+        },
+        "avg_rank": {
+          "LogReg": 4.7,
+          "SVM-RBF": 4.6,
+          "KNN": 3.7,
+          "MLP": 4.5,
+          "RandomForest": 3.7,
+          "XGBoost": 3.3,
+          "TabPFN-2.5": 3.5
+        },
+        "means": {
+          "LogReg": 0.969390344191625,
+          "SVM-RBF": 0.9836409914133674,
+          "KNN": 0.9824700380771951,
+          "MLP": 0.9555226559258154,
+          "RandomForest": 0.9627715115445664,
+          "XGBoost": 0.9752433912612787,
+          "TabPFN-2.5": 0.9659195820135864
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 0.5,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.75,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 0.875,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 0.75,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ]
+        }
+      },
+      "lolo": {
+        "n_blocks": 6,
+        "friedman": {
+          "stat": 6.000000000000026,
+          "p": 0.4231900811268406
+        },
+        "avg_rank": {
+          "LogReg": 4.5,
+          "SVM-RBF": 4.333333333333333,
+          "KNN": 4.0,
+          "MLP": 4.166666666666667,
+          "RandomForest": 3.5833333333333335,
+          "XGBoost": 3.5833333333333335,
+          "TabPFN-2.5": 3.8333333333333335
+        },
+        "means": {
+          "LogReg": 0.9024652364426103,
+          "SVM-RBF": 0.9658107363994045,
+          "KNN": 0.9798674708689328,
+          "MLP": 0.9798458478743169,
+          "RandomForest": 0.9979416809605489,
+          "XGBoost": 0.9979416809605489,
+          "TabPFN-2.5": 0.9913830389852404
+        },
+        "pairwise_vs": {
+          "XGBoost": [
+            {
+              "model": "LogReg",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "TabPFN-2.5",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ],
+          "TabPFN-2.5": [
+            {
+              "model": "LogReg",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "SVM-RBF",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "KNN",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "MLP",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "RandomForest",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            },
+            {
+              "model": "XGBoost",
+              "p": 1.0,
+              "p_holm": 1.0,
+              "sig": false
+            }
+          ]
+        }
+      }
+    }
+  },
+  "note": "Friedman omnibus + Holm-corrected pairwise Wilcoxon on per-fold (GK) / per-load (LOLO) primary scores. detection/phase=macro-F1, severity=within-1. xLSTM excluded from the inferential test (cost); trails all models descriptively."
+}

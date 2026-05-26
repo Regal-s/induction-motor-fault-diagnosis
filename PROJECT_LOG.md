@@ -435,3 +435,18 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   2-column; re-inserts the grouped-header 8-model benchmark table that pandoc drops). Commits `019aec2`/`03eaae0`/`85fa823`
   all pushed to `master`. Open: Word wide figures capped to column width (small); experimental validation + significance
   tests remain the Transactions-readiness gap.
+- **2026-05-26 — Checkpoint 27:** **Cross-model significance test + WITHIN-HARDWARE evaluation added.**
+  (a) `significance.py` (Demšar): Friedman omnibus + Holm-Wilcoxon on per-fold (GK,5) / per-load (LOLO,6) scores for
+  the 7 feature/foundation models. Findings: detection & phase in-distribution NOT significant (p=0.26/0.76 -> confirms
+  saturation); severity (both) + detection-LOLO significant (p=0.0013/0.0008/0.050); no pairwise survives Holm (5-6
+  blocks underpowered). Added Table tab:significance + Demšar cite.
+  (b) `hardware_eval.py` — **first within-hardware test of our models** on the real ibarram motor (1235 windows, 65
+  recordings=13 classes x 5 reps), all 8 models x detect/severity(4-level)/phase x {StratifiedGroupKFold-by-recording,
+  Leave-One-Repetition-Out}. RESULTS: detection transfers (TabPFN-2.5 GK F1 0.994, XGB/RF LORO ~0.95); severity
+  moderate (within-1 0.83-0.96, exact 0.6-0.75, TabPFN best MAE 0.34); **phase degrades sharply on hardware (F1
+  0.64-0.72 vs sim 0.97)** = the main sim-to-real gap (noisy neg-seq angle at 1 kHz). Fixed 2 bugs (non-numeric
+  'dataset' col leaking into X; error-dict table builder) + a duplicate concurrent run. Integrated into manuscript as
+  new Section IV-G "Hardware Validation" (Table tab:hardware + 3 confusion figs fig:hwcm); updated abstract,
+  contributions, discussion, conclusion. main.pdf now 10 pages, clean. regen_docx.py generalized to re-insert BOTH
+  grouped tables; Word doc regenerated (22 tables, 14 images). Closes the hardware-validation gap (detection yes,
+  phase is the honest weak point).

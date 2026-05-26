@@ -59,7 +59,10 @@ physics-anchored domain adaptation that recovers a simulation-trained detector o
 dataset ($0.48\!\rightarrow\!0.98$ macro-F1 with two labelled real samples). The deployed cascade
 reaches within-one-level accuracy of $0.95$ in-distribution and $0.92$ across unseen loads, with
 calibrated detection (expected calibration error $0.021$), graceful noise degradation, and $100\%$
-fault-onset detection at $0\%$ pre-fault false alarm. All code, splits, and artifacts are released.
+fault-onset detection at $0\%$ pre-fault false alarm. A within-hardware evaluation of all eight models on
+the real motor confirms detection transfers (macro-F1 up to $0.99$) and severity is usable, while exposing
+faulted-phase localization as the main simulation-to-reality gap (macro-F1 $0.97\!\rightarrow\!0.72$),
+reported transparently. All code, splits, and artifacts are released.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -128,6 +131,9 @@ tensor (SCST) representation, a load-invariance-regularized feature selection (L
 phase-coupled FiLM \emph{load-conditioned} multi-task network (PCM-Net) that injects rather than erases
 the operating point, and physics-anchored domain adaptation (PADA) validated
 simulation-to-experiment, plus an honest negative result on physics-constrained generative augmentation.
+\item A \emph{within-hardware evaluation} of all eight models on a real motor (leakage-safe, by recording
+and by repetition), establishing that detection transfers (macro-F1 up to $0.99$) and severity is usable,
+and transparently identifying faulted-phase localization as the main simulation-to-reality gap.
 \item A fully \emph{reproducible} release of code, leakage-safe splits, feature tables, and per-model
 result artifacts.
 \end{itemize}
@@ -643,6 +649,67 @@ showing stable convergence without over-fitting.}
 \label{fig:metrics}
 \end{figure}
 
+\subsection{Hardware Validation (Within-Domain)}
+All results so far are from simulation; we now train and test the same models \emph{on a real motor}.
+Using the public ibarram dataset~\cite{ibarram} (a $0.75$~hp IM, three-phase current at $1$~kHz, no load;
+$65$ recordings $=13$ classes $\times 5$ repetitions), we evaluate every model within-hardware under two
+leakage-safe protocols: StratifiedGroupKFold grouped by recording, and Leave-One-Repetition-Out (LORO),
+which holds out an entire unseen recording per class. Severity uses the dataset's own four-level scale
+($10/20/30/40\%$). Table~\ref{tab:hardware} reports the outcome and Fig.~\ref{fig:hwcm} the XGBoost
+confusion matrices, and we deliberately report the weaknesses as fully as the strengths.
+
+Three findings stand out. First, \emph{detection transfers to hardware}: TabPFN-2.5 and the
+gradient-boosted/forest models reach macro-F1 $0.95$--$0.99$ on the real motor, and the LORO score (an
+entirely unseen recording) is as strong as the in-domain one, so fault \emph{presence} is decided
+reliably from real current. Second, \emph{severity is moderate}: within-one-level accuracy is
+$0.83$--$0.96$ but exact accuracy falls to $0.6$--$0.75$ (TabPFN-2.5 best, with the lowest mean absolute
+error of $0.34$ level), reflecting genuinely harder discrimination of adjacent shorted-turn fractions on
+real signals. Third---and most important to state plainly---\emph{faulted-phase localization degrades
+sharply on hardware} (macro-F1 $0.64$--$0.72$, versus $0.97$ in simulation): the negative-sequence
+\emph{angle} that cleanly separates the three phases in simulation is too corrupted by the real sensing
+chain and the low $1$~kHz rate to localize the phase reliably. This is the clearest simulation-to-reality
+gap in the study and a concrete target for future work (higher sampling rate, angle de-noising, or
+supervised phase calibration on the target machine). Consistent with the simulation benchmark, TabPFN-2.5
+is again the strongest tabular model, and the raw-signal xLSTM trails on detection and phase (its high
+severity within-one reflects adjacent-level predictions rather than exact accuracy).
+
+\begin{table}[!t]
+\caption{Within-hardware results on the real ibarram motor (StratifiedGroupKFold by recording, GK; and
+Leave-One-Repetition-Out, LORO). Detection and phase report macro-F1; severity reports within-one-level
+accuracy on its four-level scale. Best per column in bold.}
+\label{tab:hardware}
+\centering
+\footnotesize
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+& \multicolumn{2}{c}{Detection} & \multicolumn{2}{c}{Severity (w-1)} & \multicolumn{2}{c}{Phase} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Model & GK & LORO & GK & LORO & GK & LORO \\
+\midrule
+Logistic Regression & 0.817 & 0.864 & 0.830 & 0.818 & 0.664 & 0.678 \\
+SVM-RBF             & 0.877 & 0.923 & 0.866 & 0.818 & 0.661 & 0.689 \\
+$k$-NN              & 0.829 & 0.884 & 0.827 & 0.804 & 0.642 & 0.648 \\
+MLP                 & 0.846 & 0.880 & 0.866 & 0.811 & \textbf{0.664} & 0.690 \\
+Random Forest       & 0.923 & 0.947 & 0.900 & 0.829 & 0.650 & \textbf{0.718} \\
+XGBoost             & 0.966 & \textbf{0.955} & 0.900 & 0.836 & 0.636 & 0.707 \\
+TabPFN-2.5          & \textbf{0.994} & 0.954 & 0.929 & 0.864 & 0.643 & 0.701 \\
+xLSTM               & 0.708 & 0.699 & \textbf{0.963} & \textbf{0.957} & 0.651 & 0.648 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.32\textwidth]{figs/fig_hw_confusion_detection.pdf}\hfill
+\includegraphics[width=0.32\textwidth]{figs/fig_hw_confusion_severity.pdf}\hfill
+\includegraphics[width=0.32\textwidth]{figs/fig_hw_confusion_phase.pdf}
+\caption{Within-hardware confusion matrices on the real motor (XGBoost, GroupKFold out-of-fold):
+detection (left), four-level severity (middle), faulted phase (right). Detection is clean and severity
+errors are near-diagonal, but the phase matrix shows substantial off-diagonal confusion---the main
+simulation-to-reality gap.}
+\label{fig:hwcm}
+\end{figure*}
+
 \subsection{Discussion: Positioning and Deployment}
 The in-distribution figures are consistent with the best reported values for current-based stator
 diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
@@ -656,9 +723,12 @@ it consumes only the already-measured three-phase current, runs in well under a 
 a CPU, exposes interpretable physical quantities (the negative-sequence ratio and EPVA factor that drive
 a decision), provides calibrated probabilities with an online onset trigger suitable for a protection
 relay, and offers a foundation-model option (TabPFN-2.5) that is both the most load-robust detector and
-training-free. The principal limitation is that the diagnosis results are from high-fidelity simulation;
-the transfer study provides initial real-motor validation, but a full instrumented campaign and a
-supply-voltage-unbalance robustness study remain future work.
+training-free. Within-hardware validation on a real motor (Section~IV-G) confirms that detection
+transfers (macro-F1 up to $0.99$) and severity is usable (within-one $\geq0.86$), while exposing
+faulted-phase localization as the principal simulation-to-reality gap (macro-F1 $0.97\!\rightarrow\!0.72$).
+The remaining limitations are that the load-robustness results are validated only in simulation (the
+public real dataset has no load variation), and that a full instrumented campaign with supply-voltage
+unbalance and richer real severities remains future work.
 
 \section{Conclusion}
 We presented a physics-informed, leakage-safe machine-learning framework for stator inter-turn fault
@@ -674,7 +744,11 @@ feature selection, a FiLM-conditioned multi-task network, and physics-anchored d
 independently improved cross-load performance, and the framework was validated simulation-to-experiment on
 a public real-motor dataset. The end-to-end cascade attains within-one accuracy of $0.95$ in-distribution
 and $0.92$ across unseen loads, with calibrated detection, graceful noise degradation, and reliable onset
-detection. Future work includes a stronger conditional generator for physics-constrained augmentation,
+detection. A within-hardware evaluation of all eight models on the real motor confirmed that detection
+transfers (macro-F1 up to $0.99$) and severity is usable, while transparently identifying faulted-phase
+localization as the principal simulation-to-reality gap (macro-F1 $0.97\!\rightarrow\!0.72$). Future work
+includes closing that gap (higher sampling, angle de-noising, supervised phase calibration), a stronger
+conditional generator for physics-constrained augmentation,
 full selective-state-space and Kolmogorov--Arnold backbones, an experimental campaign with supply
 voltage-unbalance rejection, and group-conditional conformal calibration of the severity intervals. All
 code, dataset splits, and result artifacts are released for reproducibility.

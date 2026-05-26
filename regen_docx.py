@@ -32,6 +32,23 @@ BENCH_ROWS = [
 ]
 BENCH_MAX = [max(r[1][j] for r in BENCH_ROWS) for j in range(6)]
 
+# pandoc also drops the grouped-header hardware table*; re-insert it too.
+HW_CAP = ("Within-hardware results on the real ibarram motor (StratifiedGroupKFold by recording, GK; and "
+          "Leave-One-Repetition-Out, LORO). Detection and phase report macro-F1; severity reports "
+          "within-one-level accuracy on its four-level scale. Best per column in bold.")
+HW_GROUPS = ["Detection", "Severity (w-1)", "Phase"]
+HW_ROWS = [
+    ("Logistic Regression", [0.817, 0.864, 0.830, 0.818, 0.664, 0.678]),
+    ("SVM-RBF",             [0.877, 0.923, 0.866, 0.818, 0.661, 0.689]),
+    ("k-NN",                [0.829, 0.884, 0.827, 0.804, 0.642, 0.648]),
+    ("MLP",                 [0.846, 0.880, 0.866, 0.811, 0.664, 0.690]),
+    ("Random Forest",       [0.923, 0.947, 0.900, 0.829, 0.650, 0.718]),
+    ("XGBoost",             [0.966, 0.955, 0.900, 0.836, 0.636, 0.707]),
+    ("TabPFN-2.5",          [0.994, 0.954, 0.929, 0.864, 0.643, 0.701]),
+    ("xLSTM",               [0.708, 0.699, 0.963, 0.957, 0.651, 0.648]),
+]
+HW_MAX = [max(r[1][j] for r in HW_ROWS) for j in range(6)]
+
 
 def _cell(cell, text, bold=False, center=True):
     cell.text = ""
@@ -41,43 +58,55 @@ def _cell(cell, text, bold=False, center=True):
     run = p.add_run(text); run.font.size = Pt(8); run.font.bold = bold
 
 
-def insert_benchmark_table(d):
+def insert_grouped_table(d, anchor_keys, caption, rows, col_max, groups, subs, tag):
+    """Insert a 2-row grouped-header table (pandoc drops these) after the first paragraph
+    whose text contains any of anchor_keys."""
     anchor = None
     for p in d.paragraphs:
-        t = p.text
-        if "benchmark eight models" in t or "in-distribution task is saturated" in t:
+        if any(k in p.text for k in anchor_keys):
             anchor = p; break
-    if anchor is None:        # fall back to the figure caption
-        for p in d.paragraphs:
-            if "Model benchmark across the three diagnostic tasks" in p.text:
-                anchor = p; break
     if anchor is None:
-        print("WARN: benchmark anchor not found; table not inserted"); return
+        print(f"WARN: anchor not found for {tag}; table not inserted"); return
     cur = anchor._p
-    cap = d.add_paragraph("TABLE: " + BENCH_CAP)
+    cap = d.add_paragraph("TABLE: " + caption)
     for r in cap.runs:
         r.font.size = Pt(8); r.font.bold = True
     cur.addnext(cap._p); cur = cap._p
 
-    tbl = d.add_table(rows=2 + len(BENCH_ROWS), cols=7)
+    tbl = d.add_table(rows=2 + len(rows), cols=7)
     try:
         tbl.style = "Table Grid"
     except Exception:
         pass
     r0 = tbl.rows[0].cells; r1 = tbl.rows[1].cells
     _cell(r0[0], "")
-    _cell(r0[1].merge(r0[2]), "Detection (macro-F1)", bold=True)
-    _cell(r0[3].merge(r0[4]), "Severity (within-1)", bold=True)
-    _cell(r0[5].merge(r0[6]), "Phase (macro-F1)", bold=True)
-    for i, lab in enumerate(["Model", "GK", "LOLO", "GK", "LOLO", "GK", "LOLO"]):
+    _cell(r0[1].merge(r0[2]), groups[0], bold=True)
+    _cell(r0[3].merge(r0[4]), groups[1], bold=True)
+    _cell(r0[5].merge(r0[6]), groups[2], bold=True)
+    for i, lab in enumerate(["Model"] + subs):
         _cell(r1[i], lab, bold=True, center=(i != 0))
-    for ri, (name, vals) in enumerate(BENCH_ROWS, start=2):
+    for ri, (name, vals) in enumerate(rows, start=2):
         cells = tbl.rows[ri].cells
         _cell(cells[0], name, center=False)
         for j, v in enumerate(vals):
-            _cell(cells[j + 1], f"{v:.3f}", bold=(abs(v - BENCH_MAX[j]) < 1e-9))
+            _cell(cells[j + 1], f"{v:.3f}", bold=(abs(v - col_max[j]) < 1e-9))
     cur.addnext(tbl._tbl)
-    print("inserted 8-model benchmark table")
+    print(f"inserted {tag} table")
+
+
+def insert_benchmark_table(d):
+    insert_grouped_table(d, ["benchmark eight models", "in-distribution task is saturated",
+                             "Model benchmark across the three diagnostic tasks"],
+                         BENCH_CAP, BENCH_ROWS, BENCH_MAX,
+                         ["Detection (macro-F1)", "Severity (within-1)", "Phase (macro-F1)"],
+                         ["GK", "LOLO", "GK", "LOLO", "GK", "LOLO"], "8-model benchmark")
+
+
+def insert_hardware_table(d):
+    insert_grouped_table(d, ["detection transfers to hardware", "Three findings stand out",
+                             "Within-hardware confusion matrices on the real motor"],
+                         HW_CAP, HW_ROWS, HW_MAX, HW_GROUPS,
+                         ["GK", "LORO", "GK", "LORO", "GK", "LORO"], "within-hardware")
 
 ROOT = Path(r"D:\Naveen")
 MAN = ROOT / "manuscript"
@@ -123,6 +152,7 @@ def two_columns_and_fit():
             shp.height = int(shp.height * ratio)
             shp.width = int(col_w)
     insert_benchmark_table(d)
+    insert_hardware_table(d)
     sectPr = d.sections[0]._sectPr
     cols = sectPr.find(qn("w:cols"))
     if cols is None:

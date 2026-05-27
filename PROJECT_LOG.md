@@ -459,3 +459,15 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   feature design — reported honestly. Integrated into IV-G (revised 3rd finding + table caption note) and
   abstract/discussion/conclusion: phase gap reframed from "0.97->0.72" to "per-window 0.72, per-recording 0.93-0.95".
   main.pdf 10 pp clean; Word regenerated. `dataset/phase_hw_improve.json`.
+- **2026-05-28 — Checkpoint 29:** **10-fold + leakage-safe tuning + physics-consistent augmentation (deep-research-guided).**
+  Two deep-research agents surveyed augmentation + grouped-CV/tuning best practices -> `papers/AUGMENTATION_TUNING_RESEARCH.md`.
+  Built `augment.py` (joint amplitude/load scaling, per-channel SNR jitter, magnitude-warp, phase-coherent shift,
+  faulted-phase rotation, ordinal mixup — all signature-preserving; verified imbalance unchanged) and `tune_augment.py`
+  (Optuna TPE with CROSS-LOAD inner objective per DomainBed; XGBoost early-stop on inner held-out load; HPs frozen for
+  10-fold StratifiedGroupKFold + LOLO; train-fold augmentation re-featurised; per-recording aggregation; load-aware
+  severity + invariant feats kept). RESULTS (default/tuned/tuned+aug): **augmentation is the lever, tuning marginal**
+  (metrics saturated). Severity within-1: LOLO 0.911->0.935, GK 0.934->0.976, MAE 0.917->0.731 (-20%). Detection LOLO
+  0.964->0.977. Phase 0.997 LOLO maintained. Fixed load_pct re-featurisation bug (carry non-signal feats from source).
+  Integrated: II-F methodology (tuning+aug described, cites DomainBed/Optuna/Iwana/mixup) + new Section IV-H
+  "Hyperparameter Tuning and Data Augmentation" (Table tab:tuneaug) + abstract/conclusion. All novelties + prior
+  helpful methods retained. main.pdf 10 pp clean; Word regenerated (23 tables). `dataset/tune_augment_results.json`.

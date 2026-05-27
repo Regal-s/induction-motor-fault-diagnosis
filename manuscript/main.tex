@@ -62,7 +62,11 @@ calibrated detection (expected calibration error $0.021$), graceful noise degrad
 fault-onset detection at $0\%$ pre-fault false alarm. A within-hardware evaluation of all eight models on
 the real motor confirms detection transfers (macro-F1 up to $0.99$) and severity is usable; per-window
 faulted-phase localization is the main gap (macro-F1 $0.72$ vs.\ $0.97$ in simulation) but per-recording
-aggregation recovers it to $0.93$--$0.95$---all reported transparently. All code, splits, and artifacts are released.
+aggregation recovers it to $0.93$--$0.95$---all reported transparently. Finally, leakage-safe Optuna
+tuning with a cross-load objective and physics-consistent, signature-preserving training-fold
+augmentation, evaluated under 10-fold grouped cross-validation, further raise cross-load severity
+(within-one $0.91\!\rightarrow\!0.94$; in-distribution $0.93\!\rightarrow\!0.98$; mean absolute error
+$-20\%$) and detection (LOLO $0.96\!\rightarrow\!0.98$). All code, splits, and artifacts are released.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -251,10 +255,21 @@ J(f)=\mathrm{Rel}(f)-\lambda\,\mathrm{Red}(f)-\gamma\,\mathrm{LoadInstability}(f
 where $\mathrm{LoadInstability}(f)$ is the across-load drift of the feature's class-conditional mean
 normalized by its global spread ($\gamma{=}0$ recovers plain mRMR). LIR-mRMR selects dimensionless,
 load-stable features and, on the load-dependent severity task, generalizes better at compact size
-(Section~IV-E). \emph{Augmentation.} We additionally study a conditional generator of three-phase
-current with a hard Kirchhoff current-balance projection ($i_a+i_b+i_c=0$) and a soft
-negative-sequence-versus-severity loss; the hard constraint is enforced exactly, and an honest negative
-result on controllability is reported in Section~IV-E.
+(Section~IV-E). \emph{Augmentation.} For the deployed pipeline we apply, to the \emph{training fold
+only}, a set of physics-consistent augmentations selected from a survey of time-series and
+signature-guided methods~\cite{iwana2021,zhang2018mixup}: joint amplitude (load) scaling, per-channel
+SNR jitter, mild magnitude-warp, phase-coherent time shift, and---for the faulted-phase task---exact
+faulted-phase rotation (a cyclic channel permutation with the negative-sequence angle rotated
+$\mp120^\circ$). Every amplitude operation acts \emph{jointly} on the three phases so the inter-phase
+imbalance (the fault signature) and Kirchhoff balance $i_a+i_b+i_c=0$ are preserved; a current-balance
+reject filter guards this, and signature-corrupting operations (per-channel scaling, segment
+permutation, phase-spectrum randomization) are excluded. Augmented windows are re-featurised through the
+same extractor. We separately study a conditional generator of three-phase current with a hard Kirchhoff
+projection and a soft negative-sequence-versus-severity loss; the hard constraint is enforced exactly,
+with an honest negative result on controllability reported in Section~IV-E. Hyperparameters of the
+gradient-boosted models are selected by Optuna TPE~\cite{akiba2019} with a \emph{cross-load} inner
+objective (leave-one-load-out over the training loads, the model-selection principle of domain
+generalization~\cite{gulrajani2021}), with early stopping on an inner held-out load.
 
 \subsection{Models: Gradient Boosting, Foundation Model, and Deep Networks}
 Gradient-boosted trees (XGBoost~\cite{chen2016}) implement the three stages: detection (class-weighted
@@ -715,6 +730,42 @@ simulation-to-reality gap.}
 \label{fig:hwcm}
 \end{figure*}
 
+\subsection{Hyperparameter Tuning and Data Augmentation}
+We finally isolate the effect of leakage-safe hyperparameter tuning and physics-consistent
+training-fold augmentation on the deployed XGBoost pipeline, evaluated under \emph{10-fold}
+StratifiedGroupKFold (the $147$ operating-point groups satisfy $n_\text{folds}\le n_\text{groups}$) and
+LOLO. Hyperparameters are tuned for cross-load generalization (Section~II-F) and frozen for both
+protocols; augmentation is applied to the training fold only and re-featurised. Table~\ref{tab:tuneaug}
+reports the three conditions. Tuning alone is marginal on the already-saturated metrics (consistent with
+the significance analysis of Section~IV-D), but \emph{augmentation is the decisive lever for cross-load
+generalization}: it raises severity within-one-level accuracy from $0.911$ to $0.935$ under LOLO and from
+$0.934$ to $0.976$ in-distribution, cutting the mean absolute error by $20\%$ ($0.917\!\rightarrow\!0.731$
+level), and lifts detection LOLO macro-F1 from $0.964$ to $0.977$, while faulted-phase identification
+remains at $0.997$. This confirms the augmentation principle: synthesising training windows toward unseen
+operating points---by jointly scaling the three phases, so the inter-phase imbalance and current balance
+are preserved---directly improves cross-load diagnosis without fabricating the fault signature.
+
+\begin{table}[!t]
+\caption{Effect of leakage-safe tuning and physics-consistent training-fold augmentation on the deployed
+XGBoost pipeline (10-fold StratifiedGroupKFold and LOLO). Detection/phase: macro-F1; severity:
+within-one-level accuracy. Best per row in bold.}
+\label{tab:tuneaug}
+\centering
+\footnotesize
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Task (metric) & Protocol & Default & Tuned & Tuned$+$Aug \\
+\midrule
+Detection (macro-F1) & 10-fold GK & 0.976 & 0.976 & \textbf{0.979} \\
+Detection (macro-F1) & LOLO       & 0.964 & 0.964 & \textbf{0.977} \\
+Severity (within-1)  & 10-fold GK & 0.934 & 0.937 & \textbf{0.976} \\
+Severity (within-1)  & LOLO       & 0.911 & 0.908 & \textbf{0.935} \\
+Phase (macro-F1)     & 10-fold GK & \textbf{0.964} & 0.936 & \textbf{0.964} \\
+Phase (macro-F1)     & LOLO       & 0.994 & \textbf{0.997} & \textbf{0.997} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Discussion: Positioning and Deployment}
 The in-distribution figures are consistent with the best reported values for current-based stator
 diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
@@ -753,7 +804,8 @@ detection. A within-hardware evaluation of all eight models on the real motor co
 transfers (macro-F1 up to $0.99$) and severity is usable; per-window faulted-phase localization is the
 main gap (macro-F1 $0.72$) but per-recording aggregation recovers it to $0.93$--$0.95$. Future work
 includes closing the residual per-window phase gap (higher sampling, supervised phase calibration), a
-stronger conditional generator for physics-constrained augmentation,
+stronger conditional generator for physics-constrained augmentation (the signature-preserving
+training-fold augmentation introduced here already cut cross-load severity error by $20\%$),
 full selective-state-space and Kolmogorov--Arnold backbones, an experimental campaign with supply
 voltage-unbalance rejection, and group-conditional conformal calibration of the severity intervals. All
 code, dataset splits, and result artifacts are released for reproducibility.
@@ -812,6 +864,14 @@ spaces,'' \emph{arXiv:2312.00752}, 2023.
 2025.
 \bibitem{demsar2006} J. Demšar, ``Statistical comparisons of classifiers over multiple data sets,''
 \emph{J. Mach. Learn. Res.}, vol. 7, pp. 1--30, 2006.
+\bibitem{gulrajani2021} I. Gulrajani and D. Lopez-Paz, ``In search of lost domain generalization,'' in
+\emph{Proc. ICLR}, 2021.
+\bibitem{akiba2019} T. Akiba, S. Sano, T. Yanase, T. Ohta, and M. Koyama, ``Optuna: A next-generation
+hyperparameter optimization framework,'' in \emph{Proc. ACM SIGKDD}, 2019, pp. 2623--2631.
+\bibitem{iwana2021} B. K. Iwana and S. Uchida, ``An empirical survey of data augmentation for time
+series classification with neural networks,'' \emph{PLOS ONE}, vol. 16, no. 7, e0254841, 2021.
+\bibitem{zhang2018mixup} H. Zhang, M. Cissé, Y. N. Dauphin, and D. Lopez-Paz, ``mixup: Beyond empirical
+risk minimization,'' in \emph{Proc. ICLR}, 2018.
 \bibitem{perez2018} E. Perez, F. Strub, H. de Vries, V. Dumoulin, and A. Courville, ``FiLM: Visual
 reasoning with a general conditioning layer,'' in \emph{Proc. AAAI}, 2018.
 \bibitem{ibarram} M. Ibarra-Manzano \emph{et al.}, ``ITSC: Inter-turn short-circuit fault dataset

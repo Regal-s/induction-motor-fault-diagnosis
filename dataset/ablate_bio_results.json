@@ -1,0 +1,226 @@
+{
+  "detection": {
+    "physics": {
+      "groupkfold": {
+        "macro_f1": 0.9768590945977053,
+        "acc": 0.9787611600953807
+      },
+      "lolo": {
+        "macro_f1": 0.9479595885617433,
+        "acc": 0.9532408181463523
+      }
+    },
+    "physics+bio": {
+      "groupkfold": {
+        "macro_f1": 0.9767366421546637,
+        "acc": 0.9786502523151999
+      },
+      "lolo": {
+        "macro_f1": 0.9784382784943283,
+        "acc": 0.980270857716101
+      }
+    },
+    "n_phys": 72,
+    "n_bio": 24,
+    "top_bio_importance": [
+      [
+        "pmod_hjorth_mob",
+        0.024596596136689186
+      ],
+      [
+        "pmod_hjorth_comp",
+        0.0005211239331401885
+      ],
+      [
+        "pmod_katz",
+        0.00023324732319451869
+      ],
+      [
+        "res_petrosian",
+        0.00018301124509889632
+      ],
+      [
+        "res_hjorth_comp",
+        0.00015037487901281565
+      ],
+      [
+        "pmod_sampen",
+        0.00012476887786760926
+      ],
+      [
+        "pmod_petrosian",
+        0.00011143540177727118
+      ],
+      [
+        "pmod_hrv_sd1",
+        0.0
+      ],
+      [
+        "pmod_hrv_sd2",
+        0.0
+      ],
+      [
+        "pmod_hrv_sd1sd2",
+        0.0
+      ]
+    ],
+    "bio_in_top20": [
+      "pmod_hjorth_mob",
+      "pmod_hjorth_comp",
+      "pmod_katz",
+      "res_petrosian"
+    ]
+  },
+  "severity": {
+    "physics": {
+      "groupkfold": {
+        "within1": 0.9970238095238095,
+        "exact": 0.9293367346938776,
+        "mae": 0.08256802721088435,
+        "qwk": 0.9819372831338976
+      },
+      "lolo": {
+        "within1": 0.9422619047619047,
+        "exact": 0.17636054421768707,
+        "mae": 0.8886054421768708,
+        "qwk": 0.8369367926542814
+      }
+    },
+    "physics+bio": {
+      "groupkfold": {
+        "within1": 0.9970238095238095,
+        "exact": 0.9760204081632653,
+        "mae": 0.03324829931972789,
+        "qwk": 0.991049530179965
+      },
+      "lolo": {
+        "within1": 0.9789965986394558,
+        "exact": 0.384608843537415,
+        "mae": 0.6423469387755102,
+        "qwk": 0.8946562970396388
+      }
+    },
+    "n_phys": 38,
+    "n_bio": 24,
+    "top_bio_importance": [
+      [
+        "res_higuchi",
+        0.06416726112365723
+      ],
+      [
+        "res_perm_ent",
+        0.04212501645088196
+      ],
+      [
+        "res_petrosian",
+        0.0164140984416008
+      ],
+      [
+        "pmod_hjorth_mob",
+        0.003297812305390835
+      ],
+      [
+        "pmod_dispen",
+        0.00314150913618505
+      ],
+      [
+        "res_hjorth_comp",
+        0.002566256560385227
+      ],
+      [
+        "pmod_hjorth_comp",
+        0.0025217998772859573
+      ],
+      [
+        "res_hjorth_mob",
+        0.0021015217062085867
+      ],
+      [
+        "pmod_hrv_rmssd",
+        0.0015018050326034427
+      ],
+      [
+        "res_katz",
+        0.0015018016565591097
+      ]
+    ],
+    "bio_in_top20": [
+      "res_higuchi",
+      "res_perm_ent",
+      "res_petrosian",
+      "pmod_hjorth_mob",
+      "pmod_dispen",
+      "res_hjorth_comp",
+      "pmod_hjorth_comp"
+    ]
+  },
+  "phase": {
+    "physics": {
+      "groupkfold": {
+        "macro_f1": 0.9643000047432123,
+        "acc": 0.9643707482993197
+      },
+      "lolo": {
+        "macro_f1": 0.9970237502076067,
+        "acc": 0.9970238095238095
+      }
+    },
+    "physics+bio": {
+      "groupkfold": {
+        "macro_f1": 0.9643000047432123,
+        "acc": 0.9643707482993197
+      },
+      "lolo": {
+        "macro_f1": 0.9970237502076067,
+        "acc": 0.9970238095238095
+      }
+    },
+    "n_phys": 72,
+    "n_bio": 24,
+    "top_bio_importance": [
+      [
+        "pmod_katz",
+        0.00131311547011137
+      ],
+      [
+        "pmod_hjorth_mob",
+        0.0005655139684677124
+      ],
+      [
+        "pmod_dispen",
+        0.0004602778353728354
+      ],
+      [
+        "pmod_hrv_sd1",
+        0.0003816979588009417
+      ],
+      [
+        "res_petrosian",
+        0.00037443990004248917
+      ],
+      [
+        "pmod_sampen",
+        0.00036819890374317765
+      ],
+      [
+        "res_perm_ent",
+        0.00036692366120405495
+      ],
+      [
+        "res_hjorth_mob",
+        0.0003633388550952077
+      ],
+      [
+        "pmod_hrv_wavedist_mean",
+        0.00035805278457701206
+      ],
+      [
+        "res_higuchi",
+        0.0003452996024861932
+      ]
+    ],
+    "bio_in_top20": [
+      "pmod_katz"
+    ]
+  }
+}

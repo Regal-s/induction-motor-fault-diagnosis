@@ -66,7 +66,10 @@ aggregation recovers it to $0.93$--$0.95$---all reported transparently. Finally,
 tuning with a cross-load objective and physics-consistent, signature-preserving training-fold
 augmentation, evaluated under 10-fold grouped cross-validation, further raise cross-load severity
 (within-one $0.91\!\rightarrow\!0.94$; in-distribution $0.93\!\rightarrow\!0.98$; mean absolute error
-$-20\%$) and detection (LOLO $0.96\!\rightarrow\!0.98$). All code, splits, and artifacts are released.
+$-20\%$) and detection (LOLO $0.96\!\rightarrow\!0.98$). A novel block of biomedical anomaly features
+(signal-complexity, entropy, fractal-dimension, and heart-rate-variability-style cycle-to-cycle measures
+imported from ECG/EEG analysis) likewise lifts cross-load detection ($+0.03$) and severity ($+0.04$)
+where absolute physics magnitudes do not transfer. All code, splits, and artifacts are released.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -130,6 +133,10 @@ conformal severity intervals, and an online onset trigger.
 $k$-NN, MLP, random forest, XGBoost, the tabular foundation model \emph{TabPFN-2.5}, and an
 \emph{xLSTM} sequence network---showing the in-distribution task is saturated and that cross-load
 behaviour, not in-distribution accuracy, is the meaningful axis of comparison.
+\item A \emph{novel biomedical anomaly-feature} block---signal-complexity, entropy, fractal-dimension,
+and heart-rate-variability-style cycle-to-cycle measures imported from ECG/EEG/HRV analysis, computed on
+the current residual and Park-vector modulus---that complements the physics features and improves
+cross-load detection ($+0.03$) and severity ($+0.04$) where absolute-magnitude features do not transfer.
 \item Four \emph{load-robustness mechanisms}, each ablated under LOLO: a sequence-component Stockwell
 tensor (SCST) representation, a load-invariance-regularized feature selection (LIR-mRMR), a
 phase-coupled FiLM \emph{load-conditioned} multi-task network (PCM-Net) that injects rather than erases
@@ -242,9 +249,29 @@ EPVA / Park & severity factor; Park-modulus mean/std; ellipse axes, eccentricity
 Harmonics & third-harmonic ratio and THD (per phase, mean) \\
 Per-phase stats & RMS, peak, crest, std, skew, kurtosis ($\times3$) and inter-phase differences \\
 Load-invariant & $|I_1|$-normalized variants of all magnitude features \\
+\textbf{Biomedical (novel)} & HRV cycle-to-cycle waveform distance \& Poincar\'e SD1/SD2; Hjorth mobility/complexity; permutation/spectral/sample/dispersion entropy; Higuchi/Katz/Petrosian fractal dimension (on the residual \& Park modulus) \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Biomedical Anomaly Features}
+Beyond the physics descriptors we introduce a block of \emph{biomedical anomaly-detection features}
+transferred from ECG/EEG/heart-rate-variability (HRV) analysis---a view absent from the motor-fault
+literature, which treats the current as a deterministic sum of sinusoids and asks \emph{which spectral
+line moves}, rather than \emph{how regular} the waveform is. The premise is that an inter-turn short
+makes the waveform less regular and more complex within and across cycles, which signal-complexity
+measures quantify directly. Crucially, these are computed on the \emph{residual} (current minus its
+fitted fundamental) and the Park-vector modulus---not the raw current, whose clean fundamental is
+trivially predictable. Three groups are used: (i) an \emph{HRV-on-current} block that treats each
+fundamental cycle as a heartbeat---cycle-to-cycle waveform distance to the median cycle and
+Poincar\'e descriptors (SD1, SD2, SD1/SD2) of the per-cycle RMS series, the direct analog of
+HRV~\cite{hrv1996,brennan2001} and the most physically faithful import, since the fault \emph{is}
+cycle-to-cycle irregularity; (ii) complexity scalars---Hjorth mobility and complexity~\cite{hjorth1970},
+permutation~\cite{bandt2002} and spectral entropy, sample~\cite{richman2000} and dispersion
+entropy~\cite{rostaghi2016}; and (iii) fractal dimension---Higuchi~\cite{higuchi1988}, Katz and
+Petrosian. The complexity and fractal members are amplitude-scale-free, which (Table~\ref{tab:bioablate})
+aids cross-load generalization. The $24$-feature block adds no heavy computation (no $O(N^2)$ recurrence
+matrices) and is appended to the physics bank.
 
 \subsection{Data Augmentation and Feature Selection}
 \emph{Feature selection.} We extend minimum-redundancy--maximum-relevance with a load-instability
@@ -730,6 +757,38 @@ simulation-to-reality gap.}
 \label{fig:hwcm}
 \end{figure*}
 
+\subsection{Biomedical Anomaly Features (Ablation)}
+Table~\ref{tab:bioablate} isolates the contribution of the biomedical anomaly block (Section~II-F). In
+distribution the features add nothing---the metrics are already saturated---but they substantially
+improve \emph{cross-load} (LOLO) generalization, the paper's central axis: detection LOLO macro-F1 rises
+from $0.948$ to $0.978$ ($+0.030$) and severity within-one-level accuracy from $0.942$ to $0.979$
+($+0.037$), while the already load-robust phase task is unchanged. By gradient-boosting gain the most
+useful biomedical features are the Hjorth mobility/complexity of the Park modulus, the
+Higuchi/Petrosian fractal dimension and permutation entropy of the residual, and dispersion entropy---all
+amplitude-scale-free, which is why they transfer across loads better than absolute-magnitude physics
+features and directly attack the cross-load severity bottleneck. This cross-domain import of biomedical
+complexity/irregularity features into stator-current diagnosis is, to our knowledge, new.
+
+\begin{table}[!t]
+\caption{Biomedical-feature ablation (XGBoost, identical leakage-safe splits): physics features vs.\
+physics $+$ biomedical anomaly features. Detection/phase: macro-F1; severity: within-one-level accuracy.}
+\label{tab:bioablate}
+\centering
+\footnotesize
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Task (metric) & Protocol & Physics & Physics$+$Bio & $\Delta$ \\
+\midrule
+Detection (macro-F1) & 10-fold GK & 0.977 & 0.977 & $+0.000$ \\
+Detection (macro-F1) & LOLO       & 0.948 & \textbf{0.978} & $\mathbf{+0.030}$ \\
+Severity (within-1)  & 10-fold GK & 0.997 & 0.997 & $+0.000$ \\
+Severity (within-1)  & LOLO       & 0.942 & \textbf{0.979} & $\mathbf{+0.037}$ \\
+Phase (macro-F1)     & 10-fold GK & 0.964 & 0.964 & $+0.000$ \\
+Phase (macro-F1)     & LOLO       & 0.997 & 0.997 & $+0.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Hyperparameter Tuning and Data Augmentation}
 We finally isolate the effect of leakage-safe hyperparameter tuning and physics-consistent
 training-fold augmentation on the deployed XGBoost pipeline, evaluated under \emph{10-fold}
@@ -872,6 +931,22 @@ hyperparameter optimization framework,'' in \emph{Proc. ACM SIGKDD}, 2019, pp. 2
 series classification with neural networks,'' \emph{PLOS ONE}, vol. 16, no. 7, e0254841, 2021.
 \bibitem{zhang2018mixup} H. Zhang, M. Cissé, Y. N. Dauphin, and D. Lopez-Paz, ``mixup: Beyond empirical
 risk minimization,'' in \emph{Proc. ICLR}, 2018.
+\bibitem{richman2000} J. S. Richman and J. R. Moorman, ``Physiological time-series analysis using
+approximate entropy and sample entropy,'' \emph{Am. J. Physiol. Heart Circ. Physiol.}, vol. 278, no. 6,
+pp. H2039--H2049, 2000.
+\bibitem{bandt2002} C. Bandt and B. Pompe, ``Permutation entropy: A natural complexity measure for time
+series,'' \emph{Phys. Rev. Lett.}, vol. 88, no. 17, art. 174102, 2002.
+\bibitem{hjorth1970} B. Hjorth, ``EEG analysis based on time domain properties,'' \emph{Electroenceph.
+Clin. Neurophysiol.}, vol. 29, no. 3, pp. 306--310, 1970.
+\bibitem{higuchi1988} T. Higuchi, ``Approach to an irregular time series on the basis of the fractal
+theory,'' \emph{Physica D}, vol. 31, no. 2, pp. 277--283, 1988.
+\bibitem{rostaghi2016} M. Rostaghi and H. Azami, ``Dispersion entropy: A measure for time-series
+analysis,'' \emph{IEEE Signal Process. Lett.}, vol. 23, no. 5, pp. 610--614, 2016.
+\bibitem{hrv1996} Task Force of the ESC and NASPE, ``Heart rate variability: Standards of measurement,
+physiological interpretation, and clinical use,'' \emph{Circulation}, vol. 93, no. 5, pp. 1043--1065, 1996.
+\bibitem{brennan2001} M. Brennan, M. Palaniswami, and P. Kamen, ``Do existing measures of Poincar\'e plot
+geometry reflect nonlinear features of heart rate variability?,'' \emph{IEEE Trans. Biomed. Eng.}, vol.
+48, no. 11, pp. 1342--1347, 2001.
 \bibitem{perez2018} E. Perez, F. Strub, H. de Vries, V. Dumoulin, and A. Courville, ``FiLM: Visual
 reasoning with a general conditioning layer,'' in \emph{Proc. AAAI}, 2018.
 \bibitem{ibarram} M. Ibarra-Manzano \emph{et al.}, ``ITSC: Inter-turn short-circuit fault dataset

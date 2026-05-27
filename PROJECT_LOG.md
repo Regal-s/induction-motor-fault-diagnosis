@@ -471,3 +471,17 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   Integrated: II-F methodology (tuning+aug described, cites DomainBed/Optuna/Iwana/mixup) + new Section IV-H
   "Hyperparameter Tuning and Data Augmentation" (Table tab:tuneaug) + abstract/conclusion. All novelties + prior
   helpful methods retained. main.pdf 10 pp clean; Word regenerated (23 tables). `dataset/tune_augment_results.json`.
+- **2026-05-28 — Checkpoint 30:** **NOVEL biomedical anomaly features added (deep-research-guided).** Deep-research
+  agent surveyed ECG/EEG/HRV anomaly features -> `papers/BIOMEDICAL_FEATURES_RESEARCH.md`. Built `features_bio.py`
+  (24 features, antropy+EntropyHub+numpy): HRV-on-current (cycle-to-cycle waveform distance + Poincare SD1/SD2,
+  each fundamental cycle = a heartbeat), Hjorth mobility/complexity, permutation/spectral/sample/dispersion entropy,
+  Higuchi/Katz/Petrosian fractal dimension — computed on the RESIDUAL (current minus fundamental) + Park-vector
+  modulus (key design rule: raw fundamental is trivially predictable). Extracted over 18,033 windows
+  (`features_bio.parquet`, 145s). Ablation (`ablate_bio.py`, physics vs physics+bio, leakage-safe): in-distribution
+  unchanged (saturated) but **cross-load (LOLO) substantially improved** — detection 0.948->0.978 (+0.030),
+  severity within-1 0.942->0.979 (+0.037), phase unchanged (already robust). Top bio feats (gain): Park-modulus
+  Hjorth mob/comp, residual Higuchi/Petrosian FD + permutation entropy, dispersion entropy — all scale-free ->
+  transfer across loads. Integrated: new methodology II-F "Biomedical Anomaly Features" + feature-table row + Results
+  subsection "Biomedical Anomaly Features (Ablation)" (Table tab:bioablate) + contributions/abstract; 7 biomedical
+  refs added. main.pdf 10 pp clean; Word regenerated (24 tables). Makes the feature-engineering contribution novel.
+

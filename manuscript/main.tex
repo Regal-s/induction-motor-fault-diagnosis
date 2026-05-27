@@ -789,6 +789,45 @@ Phase (macro-F1)     & LOLO       & 0.997 & 0.997 & $+0.000$ \\
 \end{tabular}
 \end{table}
 
+\subsection{Feature Importance and Reduction}
+\emph{Importance.} Fig.~\ref{fig:featimp} ranks the features that drive the models. For detection, SHAP
+attribution (a) is led by the Park-vector major axis and eccentricity, the zero/negative-sequence ratios,
+inter-phase RMS differences, and the EPVA severity factor---all physical inter-turn signatures,
+confirming the models exploit fault physics rather than dataset shortcuts. Among the novel biomedical
+features (b), the Park-modulus Hjorth parameters, the residual Higuchi/Petrosian fractal dimension and
+permutation entropy, and dispersion entropy carry the most weight on the (hardest) severity task,
+explaining their cross-load gains (Table~\ref{tab:bioablate}). \emph{Reduction.} Because many features are
+redundant or load-dependent, we reduce the bank with the load-invariance-regularized criterion of
+Section~II-F (LIR-mRMR). Fig.~\ref{fig:featred} compares it with plain mRMR: at a compact $k{=}10$
+features LIR-mRMR reaches cross-load (LOLO) severity within-one of $0.848$ versus mRMR's $0.740$ (a) while
+roughly halving the selected features' across-load drift (b, $0.18$ vs $0.38$), because it explicitly
+penalizes features whose class-conditional mean shifts with load. The selected subset is dimensionless and
+physics-traceable (negative-sequence angle $\sin/\cos$, Park eccentricity, $|I_1|$-normalized imbalance,
+per-phase skew)---a desirable property for safety-critical monitoring---and approaches the full
+72-feature accuracy with an order of magnitude fewer inputs. The $k{=}15$ dip reflects greedy-selection
+noise, not a benefit of additional features.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_feature_importance.pdf}
+\caption{Feature importance. (a) Stage-1 detection by mean $|$SHAP$|$ (top-12): Park-vector geometry,
+sequence-component ratios, inter-phase RMS differences, and the EPVA factor dominate---all physical
+inter-turn signatures. (b) Most influential \emph{biomedical} features (gradient-boosting gain) on the
+severity task: Park-modulus Hjorth parameters, residual fractal dimension and permutation entropy,
+dispersion entropy.}
+\label{fig:featimp}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_feature_reduction.pdf}
+\caption{Load-invariance-regularized feature reduction (LIR-mRMR) vs.\ plain mRMR, vs.\ feature-set size
+$k$. (a) Cross-load (LOLO) severity within-one accuracy---LIR-mRMR is higher at compact sizes. (b) Mean
+across-load drift of the selected features (lower is better)---LIR-mRMR roughly halves it by penalising
+load-unstable features.}
+\label{fig:featred}
+\end{figure*}
+
 \subsection{Hyperparameter Tuning and Data Augmentation}
 We finally isolate the effect of leakage-safe hyperparameter tuning and physics-consistent
 training-fold augmentation on the deployed XGBoost pipeline, evaluated under \emph{10-fold}

@@ -484,4 +484,14 @@ Open question to confirm before Phase 3: classical-first (recommended) is locked
   transfer across loads. Integrated: new methodology II-F "Biomedical Anomaly Features" + feature-table row + Results
   subsection "Biomedical Anomaly Features (Ablation)" (Table tab:bioablate) + contributions/abstract; 7 biomedical
   refs added. main.pdf 10 pp clean; Word regenerated (24 tables). Makes the feature-engineering contribution novel.
+- **2026-05-28 — Checkpoint 31:** **Full results package (editable SVG) + Feature Importance/Reduction section.**
+  `make_full_results.py` -> `results_svg/` (18 editable SVG + PNG, `svg.fonttype=none` Visio/Inkscape-editable):
+  Precision/Recall/F1/Accuracy for all models x 3 tasks (`RESULTS.md`,`full_metrics.csv`; TabPFN-2.5 best severity
+  P/R/F1 0.98, xLSTM from benchmark), P/R/F1/Acc bar charts, confusion matrices (detect/sev/phase), ROC for ALL
+  classes (detection binary+per-load, severity 7 one-vs-rest, phase 3 one-vs-rest), XGBoost convergence per stage,
+  1-D CNN train/val learning curve, robustness (noise vs SNR, per-load LOLO, calibration reliability).
+  `make_feature_figs.py` -> `fig_feature_importance` (detection SHAP top-12 + top biomedical by gain) and
+  `fig_feature_reduction` (LIR-mRMR vs mRMR: within-1 + load-drift vs k). Added manuscript Results subsection
+  "Feature Importance and Reduction" (fig:featimp + fig:featred). main.pdf clean; Word regenerated (26 tables, 16 imgs).
+
 

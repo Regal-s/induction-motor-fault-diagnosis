@@ -65,7 +65,8 @@ def full_metrics(task, yt, yp):
 
 
 def make_model(task, params, es=False):
-    p = dict(n_jobs=-1, tree_method="hist", random_state=0, **params)
+    import gpu
+    p = dict(n_jobs=-1, tree_method="hist", device=gpu.xgb_device(), random_state=0, **params)
     if es:
         p["early_stopping_rounds"] = 50
     if TASKS[task][3] == "reg":

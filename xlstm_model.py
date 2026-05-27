@@ -103,10 +103,16 @@ def decimate(Xw: np.ndarray, factor: int = 8) -> np.ndarray:
 
 
 def train_predict(Xtr, ytr, Xte, n_classes, epochs=18, bs=256, lr=1e-3,
-                  d_model=64, n_blocks=2, class_weight=None, seed=0, device="cpu",
+                  d_model=64, n_blocks=2, class_weight=None, seed=0, device=None,
                   verbose=False):
     """Train xLSTMNet on (Xtr,ytr) and return predicted labels for Xte.
-    Xtr/Xte: (N,3,L) float32 already decimated; ytr: int labels in [0,n_classes)."""
+    Xtr/Xte: (N,3,L) float32 already decimated; ytr: int labels in [0,n_classes).
+    device=None auto-detects CUDA (set FAULT_DEVICE=cpu to force CPU)."""
+    if device is None:
+        try:
+            import gpu; device = gpu.resolve()
+        except Exception:
+            device = "cpu"
     torch.manual_seed(seed); np.random.seed(seed)
     # per-channel standardization using train stats
     mu = Xtr.mean((0, 2), keepdims=True); sd = Xtr.std((0, 2), keepdims=True) + 1e-6

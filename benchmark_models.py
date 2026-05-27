@@ -94,9 +94,10 @@ def make_feature_model(name, y_tr, quick):
     if name == "XGBoost":
         nb = (np.bincount(y_tr))
         spw = (nb[0] / max(nb[1], 1)) if len(nb) == 2 else 1.0
+        import gpu
         return XGBClassifier(n_estimators=200 if quick else 400, max_depth=5, learning_rate=0.05,
                              subsample=0.8, colsample_bytree=0.8, n_jobs=-1, tree_method="hist",
-                             eval_metric="mlogloss", random_state=0,
+                             device=gpu.xgb_device(), eval_metric="mlogloss", random_state=0,
                              scale_pos_weight=spw if len(nb) == 2 else 1.0)
     raise ValueError(name)
 
@@ -105,7 +106,8 @@ def make_tabpfn(quick):
     # CPU is transductive-forward bound: cost ~ context^2 * n_estimators * query.
     # context capped at 2000 (see SUBSAMPLE) and a small ensemble keep it tractable.
     from tabpfn import TabPFNClassifier
-    return TabPFNClassifier(device="cpu", ignore_pretraining_limits=True,
+    import gpu
+    return TabPFNClassifier(device=gpu.resolve(), ignore_pretraining_limits=True,
                             n_estimators=1 if quick else 2, random_state=0)
 
 

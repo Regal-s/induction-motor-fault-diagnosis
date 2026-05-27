@@ -102,6 +102,18 @@ def decimate(Xw: np.ndarray, factor: int = 8) -> np.ndarray:
     return Xw[:, :, :n * factor].reshape(Xw.shape[0], Xw.shape[1], n, factor).mean(-1).astype(np.float32)
 
 
+def physics_channels(X3: np.ndarray) -> np.ndarray:
+    """Augment raw 3-phase windows (N,3,T) with physics-informed channels -> (N,6,T):
+    [i_a, i_b, i_c, i_alpha, i_beta, |Park|]. Gives the deep net the Clarke/EPVA structure that
+    the engineered features hand the tree models, closing the data-efficiency gap. The negative-
+    sequence content is implicit in (i_alpha,i_beta,|Park|) without a costly Hilbert transform."""
+    ia, ib, ic = X3[:, 0], X3[:, 1], X3[:, 2]
+    al = (2.0 / 3.0) * (ia - 0.5 * ib - 0.5 * ic)
+    be = (1.0 / np.sqrt(3.0)) * (ib - ic)
+    pmod = np.sqrt(al * al + be * be)
+    return np.stack([ia, ib, ic, al, be, pmod], axis=1).astype(np.float32)
+
+
 def train_predict(Xtr, ytr, Xte, n_classes, epochs=18, bs=256, lr=1e-3,
                   d_model=64, n_blocks=2, class_weight=None, seed=0, device=None,
                   verbose=False):

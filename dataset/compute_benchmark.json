@@ -1,0 +1,77 @@
+{
+  "active_device": "cpu",
+  "measured": {},
+  "models": {
+    "feature_extract": {
+      "train_s": null,
+      "infer_ms_per_window": 0.3388076499977615
+    },
+    "XGBoost": {
+      "train_s": 0.5351229999796487,
+      "infer_ms_per_window": 0.0007361833316584429
+    },
+    "1D-CNN": {
+      "train_s": 2.9816080001182854,
+      "infer_ms_per_window": 0.003968066662006701,
+      "note": "train_s = 1 epoch x 20"
+    },
+    "xLSTM": {
+      "train_s_per_epoch": 4.725011300004553,
+      "train_s": 94.50022600009106,
+      "infer_ms_per_window": null,
+      "note": "decimated; train_s ~ 1 epoch x 20"
+    },
+    "TabPFN-2.5": {
+      "train_s": 0.0,
+      "infer_ms_per_window": 8.59502710000379,
+      "note": "in-context (no training); context=2000"
+    }
+  },
+  "table": [
+    {
+      "model": "feature_extract",
+      "cpu_train_s": null,
+      "cpu_infer_ms": 0.3388,
+      "gpu_train_s": null,
+      "gpu_infer_ms": 0.3388,
+      "gpuacc_infer_ms": 0.3388,
+      "status": "CPU measured; GPU/accel PROJECTED"
+    },
+    {
+      "model": "XGBoost",
+      "cpu_train_s": 0.54,
+      "cpu_infer_ms": 0.0007,
+      "gpu_train_s": 0.09,
+      "gpu_infer_ms": 0.0004,
+      "gpuacc_infer_ms": 0.0003,
+      "status": "CPU measured; GPU/accel PROJECTED"
+    },
+    {
+      "model": "1D-CNN",
+      "cpu_train_s": 2.98,
+      "cpu_infer_ms": 0.004,
+      "gpu_train_s": 0.12,
+      "gpu_infer_ms": 0.0003,
+      "gpuacc_infer_ms": 0.0001,
+      "status": "CPU measured; GPU/accel PROJECTED"
+    },
+    {
+      "model": "xLSTM",
+      "cpu_train_s": 94.5,
+      "cpu_infer_ms": null,
+      "gpu_train_s": 3.15,
+      "gpu_infer_ms": null,
+      "gpuacc_infer_ms": null,
+      "status": "CPU measured; GPU/accel PROJECTED"
+    },
+    {
+      "model": "TabPFN-2.5",
+      "cpu_train_s": null,
+      "cpu_infer_ms": 8.595,
+      "gpu_train_s": null,
+      "gpu_infer_ms": 0.4298,
+      "gpuacc_infer_ms": 0.2865,
+      "status": "CPU measured; GPU/accel PROJECTED"
+    }
+  ]
+}

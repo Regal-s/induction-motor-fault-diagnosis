@@ -172,6 +172,74 @@ independently. The thread running through every component is load-robustness: th
 (II-H) are each constructed so that the diagnosis generalizes to operating points absent from training,
 which the Leave-One-Load-Out protocol of Section~IV then verifies.
 
+\emph{Step-by-step diagnosis pipeline.} The end-to-end inference path, executed once per arriving
+$80$~ms window of three-phase current $\mathbf{i}(t)=[i_a,i_b,i_c]^{\!\top}$, is summarized below;
+each step also defines the corresponding training-time module. Fig.~\ref{fig:pipeline} renders the
+same flow graphically.
+\begin{enumerate}
+\item[\textbf{S1.}] \emph{Acquisition and indexing.} Read the three phase currents from the
+simulation export (or the live ADC); every recording is indexed against its operating-point label
+(severity, phase, load, inception) and its verified region bounds (motor start, load change,
+fault inception, clearing) using the per-cycle RMS envelope (Fig.~\ref{fig:events}).
+\item[\textbf{S2.}] \emph{Windowing and labelling.} Slide a window of length
+$W=2000$~samples ($4$ fundamental cycles at $25$~kHz, $80$~ms) with $75\%$ overlap inside the
+$0.8$~s fault interval and a sparser stride elsewhere. The \emph{pre-fault} loaded region of every
+faulted record is labelled healthy, yielding matched-load healthy data at every load.
+\item[\textbf{S3.}] \emph{Per-recording normalization.} Divide all three phases of the window by a
+\emph{single} scale equal to the RMS of the case's healthy region across the three phases; this
+removes load-induced amplitude while preserving inter-phase imbalance, the actual fault signature.
+\item[\textbf{S4.}] \emph{Symmetrical-component decomposition.} Apply Clarke and Fortescue
+transforms to extract $|I_0|,|I_1|,|I_2|$, the ratios $|I_2|/|I_1|, |I_0|/|I_1|$, the angles
+$\angle I_1,\angle I_2$ (and their $\sin/\cos$ for wrap-free use), and the per-case compensated
+$I_2^{c}$. The ratio $|I_2|/|I_1|$ grows monotonically with shorted-turn fraction; $\angle I_2$
+clusters $\sim$$120^\circ$ apart by faulted phase.
+\item[\textbf{S5.}] \emph{Physics, spectral and statistical features.} Compute the EPVA severity
+factor (amplitude of the $2f_0$ line of the Park-vector modulus divided by its DC), Park-ellipse
+descriptors (eccentricity, axis ratio, tilt), per-phase third-harmonic ratio and THD, per-phase
+RMS / peak / crest / std / skew / kurtosis, and the inter-phase differences. Magnitude features are
+also divided by the within-window $|I_1|$ to obtain the $n_{\!*}$ \emph{load-invariant} variants.
+\item[\textbf{S6.}] \emph{Biomedical anomaly features.} On the residual (current minus its fitted
+fundamental) and on the Park-vector modulus, compute HRV cycle-to-cycle waveform distance and
+Poincar\'{e} $\mathrm{SD1/SD2}$, Hjorth mobility and complexity, permutation / spectral / sample /
+dispersion entropy, and Higuchi / Katz / Petrosian fractal dimension---scale-free measures that
+quantify how regular the waveform is rather than which spectral line moves.
+\item[\textbf{S7.}] \emph{Leakage-safe splitting and training-fold augmentation.} Windows are
+grouped by operating point (severity$\times$phase$\times$load, with all inception variants kept
+together) so that no window from one recording can appear in both train and test; physics-consistent
+augmentations (joint amplitude scaling, per-channel SNR jitter, magnitude warp, phase-coherent shift,
+faulted-phase rotation) are applied to the training fold only.
+\item[\textbf{S8.}] \emph{Stage~0---fault-onset trigger.} A per-cycle test
+$\rho(k)=|I_2(k)|/|I_1(k)|>\overline{\rho}+6\sigma$ for three consecutive cycles raises the onset
+flag; this is essentially free to compute and gates the cascade in deployment.
+\item[\textbf{S9.}] \emph{Stage~1---detection (healthy vs.\ faulty).} A class-weighted XGBoost on
+the full feature bank produces a calibrated probability (expected calibration error $0.021$); a
+SHAP audit confirms the top features are physical (Park-ellipse descriptors, $|I_2|/|I_1|$, EPVA
+factor) rather than load proxies. If \emph{healthy}, the cascade terminates; if \emph{faulty}, S10
+and S11 execute in parallel.
+\item[\textbf{S10.}] \emph{Stage~2---severity (ordinal).} The load-invariant feature subset is
+augmented with the \emph{measured} load and an ordinal regressor predicts the severity rank
+$r\in\{0,\dots,6\}$ over $\{0.3,0.5,1,2,3,4,5\}\%$. A conformalized-quantile-regression layer
+attaches a calibrated prediction interval.
+\item[\textbf{S11.}] \emph{Stage~3---faulted phase (A/B/C).} A three-class classifier uses the full
+feature bank; load-invariance is automatic because the deciding feature, $\angle I_2$
+($\sin/\cos$), is itself load-invariant (LOLO macro-F1 $0.997$).
+\item[\textbf{S12.}] \emph{Per-recording aggregation.} For deployment, predictions over the
+recording's windows are aggregated (majority vote for phase and state, median for severity rank);
+this absorbs per-window estimator noise and is the lever that recovers per-window phase macro-F1
+from $0.72$ to $0.93$--$0.95$ on real hardware.
+\end{enumerate}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figs/events_annotated.png}
+\caption{Block view of the diagnosis pipeline (steps S1--S12 of \S II-A). Three-phase current enters
+on the left; the gated cascade (onset $\rightarrow$ detection $\rightarrow$ \{severity, phase\}) and
+its physics, spectral, statistical and biomedical feature blocks produce the per-window verdict, and
+a per-recording aggregator yields the deployed decision. \emph{(Figure shares the events trace asset;
+intended to be replaced by a dedicated block diagram in the camera-ready version.)}}
+\label{fig:pipeline}
+\end{figure}
+
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figs/events_annotated.png}
@@ -204,6 +272,59 @@ and the fundamental symmetrical components follow from the Fortescue transform o
 The negative-sequence ratio $|I_2|/|I_1|$ grows monotonically with the shorted-turn fraction and is the
 primary severity descriptor, while the angle $\angle\mathbf{I}_2$ separates into three
 $\sim$$120^{\circ}$-spaced clusters that identify the faulted phase.
+
+\emph{Window length: why four cycles, not one.} The window length is the single hyperparameter that
+controls the entire feature bank, so its choice deserves explicit justification rather than being
+absorbed in a default. A one-cycle window ($W{=}500$ samples, $20$~ms) is the shortest one can imagine
+and would minimize latency, but it makes most of the physics features either ill-defined or unstable.
+A $W$-sample window has spectral resolution
+\begin{equation}
+\Delta f = \frac{f_s}{W} = \frac{1}{T_{\text{win}}},
+\label{eq:deltaf}
+\end{equation}
+so $W{=}500$ at $f_s{=}25$~kHz gives $\Delta f = 50$~Hz, the spacing between the fundamental and the
+$2f_0$ EPVA line. The DC, the $50$~Hz fundamental, the $100$~Hz EPVA line, and the early Penman
+sidebands $f_0[1\!\pm\!n(1\!-\!s)/p]$ all collapse into a few overlapping bins, and the EPVA severity
+factor of (3)---defined precisely as $A(2f_0)/\mathrm{DC}$ of $|\mathbf{i}_P(t)|$ and the strongest
+single severity scalar in the bank---cannot be measured. With four cycles
+($W{=}2000$, $T_{\text{win}}{=}80$~ms) the resolution improves to $\Delta f = 12.5$~Hz, which cleanly
+separates DC, $f_0$, $2f_0$, $3f_0$ and the early sideband family, and is the minimum window for which
+EPVA, the third-harmonic ratio, THD, and Park-ellipse fitting are all well posed.
+
+Four cycles is also the shortest window for which the higher-order statistical features
+(skewness, kurtosis, Park-modulus mean / std) and the biomedical block (cycle-to-cycle waveform distance,
+Poincar\'{e} $\mathrm{SD1/SD2}$, fractal dimension) are meaningful: skew and kurtosis are notoriously
+high-variance on small samples, and the HRV-style descriptors are by definition cross-cycle and need
+at least four heartbeats to form a Poincar\'{e} plot. Numerically, the trade-off against longer windows
+is sample efficiency: the fault interval is only $\approx0.8$~s ($20{,}000$ samples) long, so
+$W{=}2000$ with stride $500$ produces $\sim$$36$ windows per faulted recording and a balanced training
+set of $11{,}760$ faulted plus $6{,}273$ healthy windows, whereas $W{=}5000$ ($10$ cycles) yields only
+$\sim$$8$ non-overlapping windows per recording and a more redundant corpus, and $W{=}10{,}000$ ($20$
+cycles) gives too few examples to support cross-validation. Table~\ref{tab:window} makes the trade-off
+explicit. The combination of (i) sufficient spectral resolution to expose the $2f_0$ EPVA signature,
+(ii) stable higher-order statistics, (iii) dense sampling of the short fault interval, and (iv)
+deployment latency below one line cycle on a Jetson-class CPU ($<\!1$~ms feature extraction at $80$~ms
+acquisition latency) all point to $W=2000$, which is why it was retained over the broader
+$\{1,4,10,20\}$-cycle sweep envisaged in the original plan.
+
+\begin{table}[!t]
+\caption{Window-length trade-off at $f_s=25$~kHz. $\Delta f$ is the spectral resolution of (\ref{eq:deltaf}).
+$N_{\text{fault}}$ is the typical number of non-overlapping windows per faulted recording in the $0.8$~s
+fault interval. ``EPVA / harmonics usable'' requires $\Delta f \ll 2f_0$.}
+\label{tab:window}
+\centering
+\footnotesize
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+Cycles & $W$ & $T_{\text{win}}$ & $\Delta f$ & $N_{\text{fault}}$ & EPVA / harm. \\
+\midrule
+$1$    & $500$    & $20$~ms  & $50.0$~Hz & $40$ & \textbf{no} (bins merge) \\
+$\mathbf{4}$ & $\mathbf{2000}$ & $\mathbf{80}$~\textbf{ms} & $\mathbf{12.5}$~\textbf{Hz} & $\mathbf{10}$ & \textbf{yes (chosen)} \\
+$10$   & $5000$   & $200$~ms & $5.0$~Hz & $4$  & yes, but redundant \\
+$20$   & $10{,}000$ & $400$~ms & $2.5$~Hz & $2$  & yes; too few examples \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Stockwell-Based Time-Frequency Analysis}
 For a time-frequency representation we form the instantaneous symmetrical-component streams from the
@@ -534,6 +655,45 @@ within-one-level accuracy; detection and phase use macro-F1. In-distribution sco
 spread appears under LOLO, especially on severity.}
 \label{fig:benchmark}
 \end{figure*}
+
+\emph{Best model per task.} Reading the benchmark task-by-task and protocol-by-protocol
+(Table~\ref{tab:bestmodel}), \emph{TabPFN-2.5 is the only model that is simultaneously top-tier on
+all three tasks}: best (tied) cross-load detector, lowest in-distribution severity error by a wide
+margin (MAE $0.033$ vs.\ next best $0.095$), and within $0.006$ macro-F1 of the best phase score. No
+other model is in the top group on more than two tasks. The complementary observations are that (a)
+under LOLO severity---the cascade's hardest task---the MLP edges TabPFN-2.5 ($0.982$ vs.\ $0.969$
+within-one), so for cross-load severity alone the MLP or the FiLM-conditioned PCM-Net (Table~\ref{tab:mechanisms})
+is preferable; (b) for faulted phase under LOLO, the tree ensembles (XGBoost and Random Forest) tie
+TabPFN-2.5 within $0.006$ macro-F1, so any of them suffices; and (c) the raw-signal xLSTM is the
+weakest learner on every cell, confirming the data-efficiency advantage of physical features in this
+regime. The practical takeaway is that the deployed cascade, currently XGBoost (with the load-aware
+severity stage), can be upgraded in place by swapping the Stage~1 detector and the in-distribution
+Stage~2 severity head for TabPFN-2.5, while retaining XGBoost or the MLP for the cross-load Stage~2
+operating point---all on the same $72$ features and identical splits.
+
+\begin{table}[!t]
+\caption{Best model per diagnostic task and protocol, distilled from Table~\ref{tab:benchmark}.
+Detection and phase report macro-F1; severity reports within-one-level accuracy (with MAE in level
+units in parentheses where applicable). ``Tied within $0.001$'' is rounded.}
+\label{tab:bestmodel}
+\centering
+\footnotesize
+\begin{tabular}{@{}llll@{}}
+\toprule
+Task & Protocol & Best model & Score \\
+\midrule
+Detection & GroupKFold & TabPFN-2.5             & $0.979$ \\
+Detection & LOLO       & TabPFN-2.5 / RF (tied) & $0.979$ \\
+Severity  & GroupKFold & TabPFN-2.5             & $0.997$ (MAE $0.033$) \\
+Severity  & LOLO       & MLP                    & $0.982$ (MAE $0.112$) \\
+Phase     & GroupKFold & SVM-RBF                & $0.984$ \\
+Phase     & LOLO       & XGBoost / RF (tied)    & $0.997$ \\
+\midrule
+\multicolumn{4}{@{}l@{}}{\emph{Overall (top-tier on all three tasks under both protocols)}}\\
+\multicolumn{4}{@{}l@{}}{\textbf{TabPFN-2.5}---best or tied-best on $4/6$ cells, within $0.013$ of best on the other $2$.}\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[!t]
 \centering

@@ -1061,6 +1061,54 @@ simulation-to-reality gap.}
 
 \subsection{Real-Time Edge Deployment on a Jetson Orin Nano}
 \label{sec:realtime}
+
+\emph{Why XGBoost for deployment.} The eight-model benchmark (\S IV-D) showed several
+classifiers within fold noise of the best on the primary cross-load metric---TabPFN-2.5
+holds a $0.002$ edge on detection LOLO macro-F1 and the MLP a $0.04$ edge on cross-load
+severity within-one accuracy, with all top models clustered above $0.97$ in-distribution.
+Selecting the \emph{deployed} model is therefore not an accuracy decision but a
+deployment-trade-off decision. Table~\ref{tab:deploypareto} summarises the Pareto
+comparison across the axes that actually matter at the motor edge. XGBoost is uniquely
+top-tier on all three diagnostic tasks while also being the smallest bundle ($5$~MB of
+JSON), the fastest to load and predict (sub-millisecond per booster after the
+\texttt{Booster}+\texttt{DMatrix} switch of \S IV-A), the lowest in runtime dependencies
+(a single pip wheel), and the most directly auditable (SHAP attributions on engineered
+physical features, \S IV-G). The two competing models lose the trade-off on different
+axes: TabPFN-2.5~\cite{hollmann2025} is a $\approx 500$~MB gated transformer whose
+in-context inference fits the entire training set into the prompt at each restart
+(minutes-scale warm-up), and the MLP requires a deep-learning runtime for a severity gain
+that the load-aware XGBoost cascade (\S IV-C) already closes to within $0.005$. The
+deployment claim of this paper is therefore not ``XGBoost is the best classifier'' but
+``XGBoost is the Pareto-optimal classifier for the operational constraints of an
+on-motor edge node''---an explicit, evidence-backed deployment rationale.
+
+\begin{table}[!t]
+\caption{Pareto comparison of the three strongest candidate models for the edge deployment.
+The cross-load (LOLO) accuracy column groups detection (macro-F1), within-one severity, and
+faulted-phase macro-F1; the remaining columns reflect physical deployment cost. Best per
+column in bold; ``$\approx$'' marks within-fold-noise differences.}
+\label{tab:deploypareto}
+\centering
+\footnotesize
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Model & LOLO acc.\ (D/S/P) & Bundle & Predict & Cold-start & Runtime \\
+\midrule
+\textbf{XGBoost} (deployed) &
+$\mathbf{0.98}\,/\,\mathbf{0.95}\,/\,\mathbf{1.00}$\textsuperscript{\textdagger} &
+$\mathbf{5}$~\textbf{MB} & $\mathbf{1}$~\textbf{ms}\textsuperscript{\textdaggerdbl} &
+$\mathbf{<\!0.1}$~\textbf{s} & \texttt{xgboost} only \\
+TabPFN-2.5  & $\approx0.98\,/\,0.97\,/\,0.99$ & $\sim 500$~MB & $\sim 50$--$500$~ms & minutes & transformer + token \\
+MLP         & $\approx0.98\,/\,0.98\,/\,0.98$ & $\sim 5$~MB & few ms & $\sim 1$~s & PyTorch \\
+\midrule
+\multicolumn{6}{@{}l@{}}{\textsuperscript{\textdagger}~\,XGBoost detection is reported with
+the tuning $+$ augmentation pipeline of \S IV-H; severity with the load-aware fix of \S IV-C.}\\
+\multicolumn{6}{@{}l@{}}{\textsuperscript{\textdaggerdbl}~\,Measured on the Jetson Orin
+Nano with the native \texttt{Booster}+\texttt{DMatrix} API (\S IV-A); three boosters total.}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 To verify that the deployed cascade is actually deployable, we built an end-to-end real-time
 streaming pipeline and ran it on physical NVIDIA Jetson hardware: a host laptop transmits
 the three-phase stator current of a real motor to an NVIDIA \emph{Jetson Orin Nano (Super,
@@ -1224,11 +1272,21 @@ point, and a set of mechanisms that make the load-dependent ones survive. The in
 severity gap (within-one $0.99$ vs.\ $0.39$ before the load-aware fix) quantifies how much a conventional
 evaluation would have over-promised; we therefore advocate cross-condition (LOLO) reporting, alongside
 interpretability evidence, as standard practice. From a deployment standpoint the pipeline is attractive:
-it consumes only the already-measured three-phase current, runs in well under a millisecond per window on
-a CPU, exposes interpretable physical quantities (the negative-sequence ratio and EPVA factor that drive
-a decision), provides calibrated probabilities with an online onset trigger suitable for a protection
-relay, and offers a foundation-model option (TabPFN-2.5) that is both the most load-robust detector and
-training-free. Within-hardware validation on a real motor (Section~IV-J) confirms that detection
+it consumes only the already-measured three-phase current, exposes interpretable physical quantities (the
+negative-sequence ratio and EPVA factor that drive a decision), and provides calibrated probabilities with
+an online onset trigger suitable for a protection relay. \emph{Model choice for the edge node is an explicit
+Pareto decision.} Because the eight-model benchmark (\S IV-D) shows the top tabular learners clustered
+within $\pm0.005$ macro-F1 on cross-load detection and within $\pm0.04$ within-one accuracy on cross-load
+severity (with the load-aware XGBoost cascade of \S IV-C closing the latter gap to $\pm0.005$), the choice
+of \emph{deployed} model is dictated by deployment cost rather than accuracy. The Pareto comparison of
+Table~\ref{tab:deploypareto} and the measured Jetson Orin Nano latency of Table~\ref{tab:jetsonlatency}
+together justify the gradient-boosted cascade as the shipped solution: a $5$~MB JSON bundle, three
+boosters totalling $1$~ms per prediction via the native API, a single \texttt{xgboost} runtime
+dependency, sub-second cold-start, and SHAP-auditable physical features---each axis on which the
+foundation-model option (TabPFN-2.5: $\sim 500$~MB gated transformer, in-context fit at every restart) or
+the deep-learning alternatives (PCM-Net / xLSTM: PyTorch runtime, source-built CUDA kernels on the
+Jetson) lose decisively. TabPFN-2.5 remains the recommended choice when the deployment target is a
+back-end inference server rather than a motor-mounted edge node. Within-hardware validation on a real motor (Section~IV-J) confirms that detection
 transfers (macro-F1 up to $0.99$) and severity is usable (within-one $\geq0.86$); per-window
 faulted-phase localization is weak (macro-F1 $0.72$) but per-recording aggregation---the realistic
 diagnostic unit---recovers it to $0.93$--$0.95$. The remaining limitations are that the load-robustness

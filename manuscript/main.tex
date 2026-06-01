@@ -231,12 +231,13 @@ from $0.72$ to $0.93$--$0.95$ on real hardware.
 
 \begin{figure}[!t]
 \centering
-\includegraphics[width=\columnwidth]{figs/events_annotated.png}
-\caption{Block view of the diagnosis pipeline (steps S1--S12 of \S II-A). Three-phase current enters
-on the left; the gated cascade (onset $\rightarrow$ detection $\rightarrow$ \{severity, phase\}) and
-its physics, spectral, statistical and biomedical feature blocks produce the per-window verdict, and
-a per-recording aggregator yields the deployed decision. \emph{(Figure shares the events trace asset;
-intended to be replaced by a dedicated block diagram in the camera-ready version.)}}
+\includegraphics[width=\columnwidth]{figs/fig_pipeline_flowchart.pdf}
+\caption{Block diagram of the deployed diagnosis pipeline (steps S1--S12 of \S II-A).
+Three-phase stator current enters at the top; per-recording normalization (S3) and the
+$96$-feature extractor (S4--S6) feed Stage~0 (onset trigger on the per-cycle
+$|I_2|/|I_1|$ index) and the gated XGBoost cascade---Stage~1 detection $\rightarrow$
+\{Stage~2 severity (load-aware ordinal), Stage~3 faulted phase (3-class)\}. Per-recording
+aggregation (S12) produces the final verdict.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -437,6 +438,25 @@ $\rho(k)=|I_2(k)|/|I_1(k)|$ against a trailing pre-fault reference, $\rho(k)>\ov
 three consecutive cycles. Detection probabilities are assessed with expected calibration error and the
 Brier score~\cite{guo2017}, and severity uncertainty with conformalized quantile
 regression~\cite{romano2019,angelopoulos2021}.
+Fig.~\ref{fig:framework} contrasts the two tracks side by side: Track~A (deployed) takes the
+$96$ physics/biomedical features into the gated XGBoost cascade with a per-recording
+aggregator, while Track~B (alternative) feeds the raw three-phase window through the
+PCM-Net stem, phase-coupling attention, FiLM-conditioned backbone, and per-task heads.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_ml_dl_framework.pdf}
+\caption{The two diagnosis tracks evaluated in this work. \textbf{Track~A} (left, the
+\emph{deployed} cascade): NumPy/SciPy feature extractor $\rightarrow$ Stage~0 onset
+$\rightarrow$ Stage~1 XGBoost detector $\rightarrow$ \{Stage~2 ordinal-severity head, Stage~3
+$3$-class phase head\} $\rightarrow$ per-recording aggregation. \textbf{Track~B} (right, the
+deep alternative): raw $(3, W)$ window $\rightarrow$ multi-scale $1$-D conv stem $\rightarrow$
+phase-coupling graph attention $\rightarrow$ dilated-temporal (Mamba-surrogate) backbone
+$\rightarrow$ FiLM load conditioning $\rightarrow$ \{detect, severity~(KAN), phase\} heads
+with a current-balance PINN regularizer. Both tracks accept the same input and emit the same
+verdict; Section~IV-C reports their compared performance.}
+\label{fig:framework}
+\end{figure*}
 
 \subsection{Transfer Learning}
 To deploy a simulation-trained model on a real machine we use physics-anchored domain adaptation (PADA).
@@ -1106,16 +1126,42 @@ recordings spanning all three phases at severities $\{10,30,40\}\%$---were strea
 end-to-end from the host laptop to the Jetson Orin Nano. Each $5$~s recording was
 upsampled $1$~kHz~$\rightarrow$~$5$~kHz at the sender, Q15-packed into the $14$-byte
 frames, and transmitted over the CDC-ACM channel at $\approx 4880$~packets~$\text{s}^{-1}$;
-the receiver dropped zero bytes across the $30$~s sweep. Table~\ref{tab:realtime}
-reports per-recording verdicts side-by-side with ground truth. The cascade:
-(i)~detected the fault on $5/6$ recordings, the $\mathtt{HLT}$ healthy case being the lone
-false positive at the incipient-detection boundary already documented in Section~IV-G;
-(ii)~identified the faulted phase on $5/5$ faulted recordings ($100\%$ accuracy, consistent
-with the per-recording phase macro-F1 $0.93$--$0.95$ in Section~IV-G); and (iii)~estimated
-severity exactly on $2/5$ cases ($\mathtt{B30}$ and $\mathtt{A40}$) with $4/5$ within one
-severity level, the only large miss being the most incipient $\mathtt{B10}$ ($10\%$) case
-which was over-predicted as $40\%$---a pattern that mirrors the within-one accuracy
-$0.83$--$0.96$ reported for this bundle in Section~IV-G.
+the receiver dropped zero bytes across the $30$~s sweep. Fig.~\ref{fig:jetsonsweep}
+visualizes the per-recording verdicts side-by-side with ground truth (green~$=$~correct,
+yellow~$=$~within one severity level, red~$=$~wrong) and the per-window latency under the
+three execution modes (CPU, GPU, accelerated CPU). Table~\ref{tab:realtime} reports the
+same verdicts in tabular form. Concretely:
+(i)~detection succeeded on $5/6$ recordings, the $\mathtt{HLT}$ healthy case being the lone
+false positive at the incipient-detection boundary already documented in Section~IV-G---a
+known weakness of the deployed bundle on real-motor data, traceable to the absent healthy
+baseline in a single-window stream;
+(ii)~faulted-phase identification succeeded on $5/5$ faulted recordings ($100\%$ accuracy,
+matching the per-recording phase macro-F1 $0.93$--$0.95$ measured in Section~IV-G);
+and (iii)~severity was exact on $2/5$ cases ($\mathtt{B30}$ and $\mathtt{A40}$) and within
+one severity level on $4/5$, with the only large miss being the most incipient $\mathtt{B10}$
+($10\%$) case over-predicted as $40\%$, mirroring the within-one accuracy $0.83$--$0.96$
+reported for this bundle in Section~IV-G. \emph{Operational interpretation.} The deployed
+pipeline therefore correctly raises an alarm for every actual fault, names the
+right phase every time, and supplies a usable severity reading---the false-positive on
+healthy and the over-prediction of severity for the $10\%$ case are the two limitations a
+field operator would experience, both already characterized in Section~IV-G.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.96\textwidth]{figs/fig_jetson_sweep.pdf}
+\caption{End-to-end real-time validation of the deployed cascade on a Jetson Orin Nano
+(Super, JetPack~6, R36.4.7) over a USB type-C / CDC-ACM serial channel at $5$~kHz wire
+rate. \emph{Top:} per-recording verdicts vs.\ ground truth for six held-out repetition-$05$
+recordings ($1$ healthy, $5$ faulted spanning every phase and severities $\{10,30,40\}\%$).
+Green $=$ correct, yellow $=$ within $1$ severity level, red $=$ wrong. Detection $5/6$
+(only $\mathtt{HLT}$ false-positive), faulted phase $5/5$, severity within-$1$ $4/5$.
+\emph{Bottom-left:} aggregate per-recording accuracy. \emph{Bottom-right:} measured
+per-window latency on the Jetson Orin Nano under three execution modes (CPU sklearn,
+GPU XGBoost \texttt{device='cuda'} which requires a source build for \texttt{sm\_87}, and
+accelerated CPU via XGBoost native \texttt{Booster}~$+$~\texttt{DMatrix}). Dotted line is
+the $500$~ms window-fill at $f_s{=}1$~kHz, $W{=}500$.}
+\label{fig:jetsonsweep}
+\end{figure*}
 The deployed bundle deliberately excludes the compensation-baseline-dependent
 $I_2^{c}$ features so that the streamed window is fully self-contained; the equivalent
 uncompensated $|I_2|/|I_1|$ family carries the same signal. For a different motor or

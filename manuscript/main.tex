@@ -466,33 +466,211 @@ angles, $|I_1|$-normalized magnitudes), and optionally calibrate with a few labe
 Section~IV-E quantifies the recovery on a public real-motor dataset.
 
 \section{Experimental Setup and Dataset Preparation}
-\subsection{Description of the Experimental Setup}
-The primary dataset is generated from a three-phase squirrel-cage induction motor with stator inter-turn
-faults modelled in PSCAD/EMTDC ($f_0=50$~Hz, $f_s=25$~kHz, $10$~s per run, $500$ samples per cycle). The
-fault is introduced through a tapped stator winding that short-circuits a controlled fraction $\mu$ of
-one phase's turns, and each run follows a fixed schedule that mimics a realistic duty cycle: the motor
-is energized at $2.0$~s, the mechanical load is applied at $4.0$~s, the inter-turn short is inserted at
-$7.2$~s, and it is cleared $\approx0.8$~s later (Fig.~\ref{fig:events}). This schedule lets a single run
-furnish both a faulted segment and a matched-load healthy segment, and it exercises the start-up inrush,
-the loaded steady state, and the fault transient. The three-phase currents are exported and used
-directly (no filtering), so the diagnosis operates on the raw drive measurement.
 
-For transfer-learning validation we additionally use a public real-motor dataset~\cite{ibarram}: a
-$0.75$~hp squirrel-cage IM, three-phase current acquired with split-core current transformers at $1$~kHz
-($f_0=60$~Hz, no mechanical load), with a healthy class and inter-turn shorts at $10/20/30/40\%$ of turns
-in each of the three phases over five repetitions per class. The two sources differ in fundamental
-frequency, sampling rate, severity scale, sensing chain, and the presence of a healthy baseline,
-providing a demanding cross-domain benchmark; both are mapped to a common window/label schema and the
-feature extractor derives its harmonic bins from $(f_s,f_0)$ so that one pipeline serves both.
+Two complementary datasets are used in this work. A large \emph{simulation} corpus from
+PSCAD/EMTDC supports the in-distribution, leave-one-load-out, and ablation studies in
+\S IV-B--H; a public \emph{real-motor} dataset~\cite{ibarram} supports within-hardware
+validation (\S IV-J), simulation-to-experiment transfer learning (\S IV-E), and the
+real-time edge deployment of \S IV-K. The two sources are deliberately heterogeneous in
+machine, line frequency, sampling rate, severity scale, sensing chain, and the presence
+of a healthy baseline; this section documents each, the construction of the test-case
+matrix, and the window segmentation and labelling protocol that feeds the models.
 
-\subsection{Data Sets Generated from the Experimental Setup}
-The simulation corpus spans severity $\mu\in\{0.3,0.5,1,2,3,4,5\}\%$, faulted phase $\in\{A,B,C\}$,
-load $\in\{\mathrm{NL},20,40,60,80,100\}\%$, and several fault-inception instants, with a healthy set
-over the full load range: $357$ cases ($336$ faulty, $21$ healthy). Segmentation yields $18{,}033$
-labelled windows ($11{,}760$ faulty, $6{,}273$ healthy), balanced across severity and phase. The
-real-motor set yields $1{,}235$ windows. Windows are grouped by operating point
-(severity$\times$phase$\times$load), with all inception variants of a point kept together, so that no
-window from a record can appear in both training and test.
+\subsection{Simulation Dataset: PSCAD/EMTDC Stator Inter-Turn Faults}
+\label{sec:simset}
+\emph{Machine and fault model.} A three-phase squirrel-cage induction motor is modelled in
+PSCAD/EMTDC at line frequency $f_0=50$~Hz. The stator inter-turn fault is implemented as a
+\emph{tapped winding}: a controlled fraction $\mu$ of one phase's turns is tapped out and
+short-circuited through a fault impedance, so that the model exposes both magnitude and
+phase asymmetry while remaining electromagnetically consistent with the unfaulted stator.
+The three line currents $(i_a, i_b, i_c)$ are exported as raw time-series; no filtering or
+spectral shaping is applied before the feature pipeline so that the diagnosis operates on
+the raw measurement.
+
+\emph{Sampling and run length.} Each run is sampled at $f_s = 25$~kHz, giving $500$ samples
+per fundamental cycle and a $40$~$\mu$s time step. Faulted runs are $10$~s long
+($250{,}000$ samples); healthy runs are $5$~s long ($125{,}000$ samples). Three multi-channel
+\texttt{.out} files per case carry the full measurement bus; the diagnostically relevant
+channels are the three line currents in kA, used directly throughout this paper.
+
+\emph{Duty-cycle schedule.} Each faulted run follows a fixed event schedule that mimics a
+realistic motor duty cycle (Fig.~\ref{fig:events}): the motor is energized at $2.0$~s
+(start-up inrush settles by $\sim 2.7$~s), the mechanical load is applied at $4.0$~s
+(skipped for the no-load variant), the inter-turn short is inserted at \textbf{$7.2$~s}, and
+the fault is cleared $\approx 0.8$~s later. This single-run schedule furnishes both a
+faulted segment (samples $180{,}000$--$200{,}000$) and a \emph{matched-load} healthy segment
+(the pre-fault region, samples $\sim\!110{,}000$--$178{,}000$), the latter providing
+load-matched healthy data and a per-recording baseline for negative-sequence compensation
+(\S II-B).
+
+\emph{Operating-point matrix.} The simulation corpus enumerates a $4$-axis test-case matrix:
+\begin{itemize}
+  \item Severity $\mu \in \{0.3, 0.5, 1, 2, 3, 4, 5\}\%$ shorted turns ($7$ levels).
+  \item Faulted phase $\in \{A, B, C\}$.
+  \item Mechanical load $\in \{\mathrm{NL}, 20, 40, 60, 80, 100\}\%$ ($6$ levels, NL $=$ no load).
+  \item Fault-inception time $t_f \in \{7.20, 7.202, 7.204, \dots, 7.220\}$~s (a baseline
+        inception at $7.20$~s plus $10$ ``Extra TT'' variants per $(\mu, \mathrm{phase},
+        \mathrm{load})$ triple sweeping the inception over one half-cycle of $f_0$ to
+        randomise the fault-initiation angle).
+\end{itemize}
+A separate \emph{healthy} subset is recorded over the full load range. The resulting
+counts---$336$ faulted recordings ($126$ base $+$ $210$ inception variants $= 7 \times 3
+\times 6 \times 11$) plus $21$ healthy recordings---are summarised in
+Table~\ref{tab:simmatrix}. Total: $357$ recordings yielding $18{,}033$ labelled windows
+after segmentation (Table~\ref{tab:samples}).
+
+\begin{table}[!t]
+\caption{PSCAD/EMTDC simulation corpus---enumeration of the operating-point test matrix and
+recording counts.}
+\label{tab:simmatrix}
+\centering
+\footnotesize
+\begin{tabular}{@{}lc@{}}
+\toprule
+Axis & Levels  \\
+\midrule
+Fault type & Stator inter-turn (tapped winding) \\
+Severity $\mu$ (\% shorted turns) & $\{0.3, 0.5, 1, 2, 3, 4, 5\}$ \\
+Faulted phase & $\{A, B, C\}$ \\
+Load (\% rated) & $\{\mathrm{NL}, 20, 40, 60, 80, 100\}$ \\
+Fault inception $t_f$ (s) & $\{7.200, 7.202, \dots, 7.220\}$ ($11$ variants) \\
+\midrule
+Faulted recordings ($7 \!\times\! 3 \!\times\! 6 \!\times\! 11$ $-$ unused cells) & $336$ \\
+Healthy recordings & $21$ \\
+\textbf{Total simulation recordings} & $\mathbf{357}$ \\
+\midrule
+Sampling $f_s$ & $25$~kHz ($500$ samples/cycle) \\
+Run length (faulted / healthy) & $10$~s / $5$~s \\
+Operating-point groups (CV grouping) & $147$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Real-Motor Experimental Dataset}
+\label{sec:realset}
+\emph{Machine and acquisition.} The real-motor validation uses a publicly released
+laboratory dataset~\cite{ibarram} acquired on a $0.75$~hp squirrel-cage induction motor at
+line frequency $f_0 = 60$~Hz. Three-phase line currents are sampled at $f_s = 1$~kHz with
+split-core current transformers (no mechanical load applied; the motor runs at near-rated
+no-load speed). The motor's stator has a healthy and faulted winding configuration
+controlled by external tappings, so the same machine produces both classes under the same
+sensing chain---an important property for a clean within-hardware comparison.
+
+\emph{Fault matrix.} The real-motor dataset enumerates a $3$-axis matrix
+(Table~\ref{tab:realmatrix}): \emph{state} $\in \{\mathrm{healthy}, \mathrm{faulted}\}$;
+within faulted, \emph{severity} $\in \{10, 20, 30, 40\}\%$ shorted turns ($4$ coarser levels
+than the simulation's $7$); \emph{faulted phase} $\in \{A, B, C\}$; and \emph{repetition}
+$\in \{01, 02, 03, 04, 05\}$ ($5$ replicates per condition). The resulting $13$
+distinct conditions ($1$ healthy $+$ $4 \!\times\! 3 = 12$ faulted) $\times$ $5$ repetitions
+yield $65$ recordings, sliced into $1{,}235$ labelled windows. Repetition $05$ is held out
+for testing throughout this paper; train splits use $01$--$04$.
+
+\begin{table}[!t]
+\caption{Real-motor dataset~\cite{ibarram}---enumeration of the test matrix and recording
+counts.}
+\label{tab:realmatrix}
+\centering
+\footnotesize
+\begin{tabular}{@{}lc@{}}
+\toprule
+Axis & Levels \\
+\midrule
+Motor & $0.75$~hp squirrel-cage IM, $f_0 = 60$~Hz \\
+Sampling $f_s$ & $1$~kHz \\
+Sensing chain & Split-core current transformers \\
+Mechanical load & None (no-load operation) \\
+\midrule
+Severity (\% shorted turns) & $\{10, 20, 30, 40\}$ \\
+Faulted phase & $\{A, B, C\}$ \\
+Healthy condition & $\{\mathrm{HLT}\}$ \\
+Repetitions per condition & $\{01, 02, 03, 04, \mathbf{05}\}$ \\
+\midrule
+Total distinct conditions & $13$ ($1$ healthy $+$ $12$ faulted) \\
+Total recordings & $65$ \\
+Labelled windows & $1{,}235$ \\
+Held-out test repetition & rep $05$ ($13$ recordings) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Cross-dataset role.} The two datasets are complementary rather than redundant:
+PSCAD/EMTDC carries the load axis (essential for LOLO and the load-aware-severity story of
+\S IV-C) but is synthetic; the real-motor dataset carries the sensing and machine
+realism but no load axis. Together they support an in-distribution evaluation, a cross-load
+generalization test, a within-hardware test, a simulation-to-experiment domain-adaptation
+test, and the real-time edge-deployment test of \S IV-K.
+
+\subsection{Window Segmentation, Labelling, and Sample Distribution}
+\label{sec:samples}
+\emph{Window length} is fixed at $W = 2000$ samples for the simulation corpus
+($4$ fundamental cycles at $25$~kHz, $80$~ms) and $W = 500$ samples for the real-motor
+dataset ($\sim 30$ cycles at $1$~kHz given the lower $f_s$; $500$~ms). This is the smallest
+window for which the EPVA $2f_0$ spectral line, the third-harmonic ratio, the Park-vector
+ellipse fit, and the higher-order per-phase statistics are all well-posed (the spectral
+resolution $\Delta f = f_s / W = 12.5$~Hz at $25$~kHz cleanly separates DC, $f_0$, $2f_0$,
+and the early Penman sidebands).
+
+\emph{Stride and overlap.} Inside the short $0.8$~s simulation fault interval the stride is
+$500$ samples ($75\%$ overlap), which is needed to extract enough labelled faulted windows
+per recording; outside the fault interval (and across the real-motor recordings) a sparser
+stride is used to balance the corpus without inflating it.
+
+\emph{Matched-load healthy labelling.} The pre-fault region of every \emph{faulted} run is
+labelled as a healthy window with the corresponding load attribute. This single design
+choice (i)~furnishes load-matched healthy data at every load level, preventing the detector
+from learning the load distribution as a proxy for the class label, and (ii)~supplies an
+on-recording healthy baseline used by the per-recording normalization of \S II-B and by the
+compensated negative-sequence feature $I_2^c$.
+
+\emph{Per-recording normalization.} Each window is divided by a single per-recording
+amplitude scale (RMS over the case's healthy region across all three phases). This removes
+load-induced amplitude variation while preserving the inter-phase imbalance that encodes the
+fault---the key invariant the cascade relies on. Magnitude-based features are additionally
+divided by the within-window $|I_1|$ (the load-invariant $n_{\!*}$ variants).
+
+\emph{Sample counts and class balance.} Table~\ref{tab:samples} summarises the labelled
+window counts per dataset and per class. The simulation corpus is balanced across severity
+($1{,}680$ windows per level, exact to within rounding) and across faulted phase ($3{,}920$
+per phase); the healthy class is well-represented ($6{,}273$ windows, of which $6{,}138$
+come from matched-load pre-fault regions of fault runs and $135$ from the dedicated healthy
+runs).
+
+\begin{table}[!t]
+\caption{Sample distribution across both datasets after windowing. Windows are grouped by
+operating point (the leakage-safe grouping unit, $147$ groups for the simulation corpus and
+$13$ for the real-motor corpus); inception-time variants and per-condition repetitions are
+bound into the same group as the base case.}
+\label{tab:samples}
+\centering
+\footnotesize
+\begin{tabular}{@{}lcc@{}}
+\toprule
+& Simulation (PSCAD/EMTDC) & Real motor~\cite{ibarram} \\
+\midrule
+Recordings & $357$ & $65$ \\
+$\;$ -- healthy & $21$ & $5$ (HLT $\!\times\!$ $5$ reps) \\
+$\;$ -- faulted & $336$ & $60$ ($12$ cond $\!\times\!$ $5$ reps) \\
+Labelled windows & $\mathbf{18{,}033}$ & $\mathbf{1{,}235}$ \\
+$\;$ -- healthy & $6{,}273$ & $95$ \\
+$\;$ -- faulted & $11{,}760$ & $1{,}140$ \\
+Window length $W$ & $2{,}000$ samples ($80$~ms) & $500$ samples ($500$~ms) \\
+Stride (in / out of fault) & $500$ / $4{,}000$ & $50$ / -- \\
+Severity balance & $1{,}680$ per $\mu$ level & $\sim 285$ per $\mu$ level \\
+Phase balance & $3{,}920$ per phase & $380$ per phase \\
+CV grouping unit & operating-point (severity $\!\times\!$ phase $\!\times\!$ load) & condition $\!\times\!$ rep \\
+Number of CV groups & $147$ & $13$ \\
+Held-out test partition & per protocol (GroupKFold or LOLO) & repetition $05$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Leakage-safe grouping.} All inception-time variants of an operating point and all
+repetitions of a real-motor condition are bound into a single cross-validation group so
+that no window from a particular recording can appear in both training and test. The two
+evaluation protocols then operate on these groups: Stratified Group $k$-Fold ($k = 5$) for
+in-distribution estimation, and \emph{Leave-One-Load-Out} (LOLO), where all windows at one
+load level form the test set in turn---measuring generalization to an operating point never
+seen in training, the primary metric of this paper (\S IV-A).
 
 \section{Performance Evaluation}
 This section evaluates the proposed framework end-to-end. \S IV-A specifies the

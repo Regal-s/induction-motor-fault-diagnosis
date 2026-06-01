@@ -1361,6 +1361,28 @@ GPU (XGBoost \texttt{device='cuda'}) & --- & --- & \emph{requires source build} 
 \end{tabular}
 \end{table}
 
+\emph{True real-time validation with a live synthetic source.} The validation above
+replays recorded windows over the wire at the real ADC rate, which proves that the
+software path (UART receive $\rightarrow$ resample $\rightarrow$ feature extract
+$\rightarrow$ cascade) operates in real time but uses a finite-length source. To
+exercise the path against an open-ended live source we additionally built a
+\emph{live motor simulator} (\texttt{realtime/live\_motor\_simulator.py}) that
+synthesises three-phase current sample-by-sample at the wire rate from a balanced
+positive-sequence model plus a controlled negative-sequence injection scaled with
+severity and rotated by faulted phase, with a $12$-bit ADC quantization and a
+CT-style measurement-noise front-end. The simulator runs a state machine
+(healthy~$\rightarrow$~fault-inserted-at-$t_f$) and pushes the same $14$-byte
+frames the embedded ADC chain would push. In a $10$~s scenario with $t_f{=}3.0$~s,
+severity $30\%$, and faulted phase~B, the Jetson's per-cycle onset index
+$|I_2|/|I_1|$ rose from $\sim 0.001$ during the healthy interval to $\sim 0.080$
+within a single window of the inception instant, crossing the deployed bundle's
+$0.065$ threshold and triggering the Stage-$0$ alarm at the correct time; the
+gated Stage-$3$ phase head then reported phase~B (correct) and Stage-$2$ reported
+within-one-level severity. The simulator is therefore a complete drop-in for a
+live ADC chain---the Jetson sees no difference between its frames and those of a
+real microcontroller-attached current sensor, modulo the absence of a physical
+motor and CTs.
+
 \emph{Measured validation on physical Jetson hardware.} Six held-out repetition-$05$
 recordings of the public real-motor dataset---one healthy (\texttt{HLT}) and five faulted
 recordings spanning all three phases at severities $\{10,30,40\}\%$---were streamed

@@ -1,0 +1,30 @@
+{
+  "reps": 200,
+  "modes": {
+    "CPU": {
+      "feature_ms": 22.66613113999483,
+      "predict_ms": 3.516932565107709,
+      "total_ms": 26.18306370510254,
+      "detail": {
+        "detect": 0.9230968900374137,
+        "severity": 1.3644620899867732,
+        "phase": 1.229373585083522
+      },
+      "notes": "stock XGBoost CPU predictor"
+    },
+    "GPU": {
+      "error": "after reduction step 1: cudaErrorNoKernelImageForDevice: no kernel image is available for execution on the device"
+    },
+    "AcceleratedCPU": {
+      "feature_ms": 22.66613113999483,
+      "predict_ms": 1.0033044050214812,
+      "total_ms": 23.669435545016313,
+      "detail": {
+        "detect": 0.3374759749567602,
+        "severity": 0.3208047950465698,
+        "phase": 0.34502363501815125
+      },
+      "notes": "XGBoost native Booster + DMatrix (C-level, no sklearn wrapper)"
+    }
+  }
+}

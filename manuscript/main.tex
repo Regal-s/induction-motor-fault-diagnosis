@@ -1055,15 +1055,50 @@ live ADC---the sender is simply replaced by an acquisition daemon---so the wire-
 loopback validates the entire software path that would carry a real motor's current to the
 diagnosis.
 
-\emph{Latency budget.} On the Jetson Orin Nano (Cortex-A78 cluster, $6$ cores, JetPack~6,
-no GPU offload for the tree cascade) the per-window cost decomposes as feature extraction
-$\approx0.3$~ms, three XGBoost inferences $\approx0.05$~ms, and Python/IO overhead
-$\approx0.2$~ms, totalling well under $1$~ms per window. At $W{=}500$ and the model rate
-$f_s{=}1$~kHz the acquisition latency to fill a window is $500$~ms, so the inference time
-is two orders of magnitude smaller than the data-arrival time and the pipeline is
-compute-bound by neither the Jetson nor the network; decisions issue effectively at the
-window-cadence ($4$ decisions per second here, scaling linearly with $f_s$). The onset
-trigger (Stage~0) runs continuously at one decision per cycle and is essentially free.
+\emph{Measured per-window latency (CPU vs.\ GPU vs.\ accelerated CPU).} We measured the
+end-to-end per-window cost of the deployed cascade on the Jetson Orin Nano under three
+execution modes (Table~\ref{tab:jetsonlatency}). \emph{CPU}: the production path---NumPy/SciPy
+feature extraction on the ARM Cortex-A78 cluster and three XGBoost predictors via the
+scikit-learn wrapper---averages $22.7$~ms for the $96$-feature extraction and $3.5$~ms for the
+three booster calls, totalling $26.2$~ms per window over $200$ repetitions. \emph{GPU}:
+the on-board Orin GPU (Ampere, CUDA $12.6$ reported by \texttt{nvidia-smi}) accepts
+\texttt{device='cuda'} in XGBoost~$3.2$ but the pre-built aarch64 pip wheel does not ship
+CUDA kernels compiled for the Jetson Orin compute capability (\texttt{sm\_87})---first prediction
+returns \texttt{cudaErrorNoKernelImageForDevice}. Operationally this is recoverable by a
+source build of XGBoost with \texttt{-DGPU\_COMPUTE\_CAPABILITIES=87}, but for the deployed
+tree cascade the GPU is unlikely to win: at $1$ row $\times$ $96$ features per prediction the
+host-to-device transfer dominates the actual tree traversal, and we therefore report it as a
+present-but-unused option whose path would only pay off for the deep-model alternative
+(Section~II-G), where the GPU+TensorRT pipeline is intended to handle PCM-Net / xLSTM
+streaming inference. \emph{Accelerated CPU}: switching from the scikit-learn wrapper to
+XGBoost's native \texttt{Booster}~$+$~\texttt{DMatrix} C-level API drops the three predictions
+from $3.5$~ms to $1.0$~ms ($3.5\times$ over the production path) and brings the end-to-end
+total to $23.7$~ms; we therefore recommend the native Booster API for shipped binaries.
+In all cases the inference cost is dwarfed by the $500$~ms window-fill latency at
+$W{=}500$, $f_s{=}1$~kHz: the pipeline issues a decision every $250$~ms (stride / $f_s$) and
+the inference budget has roughly $12\times$ headroom over the worst (CPU) mode. The onset
+trigger (Stage~0) runs at one decision per fundamental cycle and is essentially free.
+
+\begin{table}[!t]
+\caption{Per-window latency of the deployed cascade on the Jetson Orin Nano (Super) under
+three execution modes, averaged over $200$ inferences after $5$ warm-up calls. Feature
+extraction is identical across modes (NumPy/SciPy on CPU).}
+\label{tab:jetsonlatency}
+\centering
+\footnotesize
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Mode & Feature (ms) & Predict (ms) & Total (ms) \\
+\midrule
+CPU (sklearn wrapper)                & $22.7$ & $3.5$ & $26.2$ \\
+GPU (XGBoost \texttt{device='cuda'}) & --- & --- & \emph{requires source build} \\
+\textbf{Accelerated CPU} (Booster + DMatrix) & $22.7$ & $\mathbf{1.0}$ & $\mathbf{23.7}$ \\
+\midrule
+\multicolumn{4}{@{}l@{}}{Window-fill at $W{=}500$, $f_s{=}1$~kHz: $500$~ms (12--20$\times$ inference headroom).} \\
+\multicolumn{4}{@{}l@{}}{Decision cadence: $4$~Hz (every stride / $f_s$ $=$ $250/1000$ s).} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \emph{Measured validation on physical Jetson hardware.} Six held-out repetition-$05$
 recordings of the public real-motor dataset---one healthy (\texttt{HLT}) and five faulted
@@ -1113,10 +1148,8 @@ Case (rep~$05$) & Ground truth & Jetson verdict & Outcome \\
 \midrule
 \multicolumn{4}{@{}l@{}}{Aggregate per-recording: detect $5/6$,
 phase $5/5$ faulted, severity within-$1$ $4/5$.}\\
-\midrule
-Window inference (ms, CPU)  & \multicolumn{3}{c}{$<\!1$ (feat.\ $0.3$ + XGB $0.05$ + IO $0.2$)} \\
-Decision cadence              & \multicolumn{3}{c}{$4$~Hz (window-rate at $f_s{=}1$~kHz, $W{=}500$)} \\
-Wire throughput               & \multicolumn{3}{c}{$\approx4880$~pkt/s, $0.55$~Mbps, $0$ B dropped} \\
+\multicolumn{4}{@{}l@{}}{Wire: $\approx4880$~pkt/s, $0.55$~Mbps, $0$ bytes dropped over $30$~s.} \\
+\multicolumn{4}{@{}l@{}}{Per-window latency: see Table~\ref{tab:jetsonlatency}.} \\
 \bottomrule
 \end{tabular}
 \end{table}

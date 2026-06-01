@@ -1027,71 +1027,96 @@ Phase (macro-F1)     & LOLO       & 0.994 & \textbf{0.997} & \textbf{0.997} \\
 \subsection{Real-Time Edge Testing on NVIDIA Jetson}
 \label{sec:realtime}
 To verify that the deployed cascade is actually deployable, we built an end-to-end real-time
-streaming pipeline that reproduces the on-motor measurement chain in the laboratory: a host
-PC replays the three-phase stator current of a real machine over Ethernet to an NVIDIA
-Jetson edge module, which buffers, windows, extracts the $72$~physics features, and runs the
-gated cascade (onset~$\rightarrow$~detection~$\rightarrow$~\{severity, phase\}) at the
+streaming pipeline and ran it on physical NVIDIA Jetson hardware: a host laptop transmits
+the three-phase stator current of a real motor to an NVIDIA \emph{Jetson Orin Nano (Super,
+JetPack~6, R36.4.7)} over a USB type-C / CDC-ACM serial channel, and the Jetson buffers,
+windows, extracts the physics and biomedical features, and runs the gated cascade
+(onset~$\rightarrow$~detection~$\rightarrow$~\{severity, phase\}) at the
 acquisition rate.
 
 \emph{System architecture.} The host (laptop) acts as a programmable current source: it
-streams the three-phase samples of a chosen recording over a TCP socket at the recording's
-native rate ($f_s$), preceded by a JSON header
-\verb|{case_id, fs, n, channels, truth}| and packed as little-endian \verb|float32| triples
-\verb|[i_a,i_b,i_c]| in fixed-size packets. The Jetson runs a TCP server that
-(i)~accumulates samples into a circular buffer, (ii)~emits a window every $\mathrm{stride}$
-samples, (iii)~normalizes the window using a baseline scale computed from a short healthy
-pre-roll (\S II-B), (iv)~computes the feature bank, and (v)~invokes the XGBoost cascade,
-printing per-window predictions and---when the recording ends---a per-recording verdict
-(majority-vote phase, median severity, healthy/faulty by window majority). The deployed model
-bundle (\verb|detect.json|, \verb|severity.json|, \verb|phase.json|, \verb|meta.json|) is
-trained off-line on the host with leakage-safe splits, exported, and copied once to the
-Jetson; no retraining occurs at the edge. The same protocol works with a live ADC---the
-sender is simply replaced by an acquisition daemon---so the loopback validates the entire
-software path that would carry a real motor's current to the diagnosis.
+streams the three-phase samples of a chosen recording over a binary UART/CDC-ACM channel at
+$921{,}600$~baud, packed as $14$-byte frames (\texttt{0xAA} sync $+$ six $16$-bit Q15
+big-endian channels $+$ \texttt{0x55} checksum) and paced at a configurable wire rate
+($5$~kHz here, an embedded-ADC-realistic rate, upsampled at the sender from the recording's
+native $1$~kHz). The Jetson runs a polling reader on \verb|/dev/ttyGS0| that
+(i)~resyncs on the framing bytes and decodes the six channels (the three voltage channels
+are discarded; the three current channels are kept), (ii)~resamples the wire stream from
+$5$~kHz back to the model's training rate of $1$~kHz with a polyphase FIR
+(\texttt{scipy.signal.resample\_poly}), (iii)~accumulates samples into a circular buffer
+and emits a $W{=}500$-sample window every $\mathrm{stride}{=}250$ samples, (iv)~computes
+the $72$ physics features and $24$ biomedical features per window, and (v)~invokes the
+deployed XGBoost cascade, printing per-window predictions and a rolling per-recording
+verdict (majority-vote phase, median severity, healthy/faulty by window majority). The
+deployed model bundle (\verb|detect.json|, \verb|severity.json|, \verb|phase.json|,
+\verb|meta.json|) is trained off-line on the host with leakage-safe splits, exported, and
+copied once to the Jetson; no retraining occurs at the edge. The same protocol works with a
+live ADC---the sender is simply replaced by an acquisition daemon---so the wire-protocol
+loopback validates the entire software path that would carry a real motor's current to the
+diagnosis.
 
-\emph{Latency budget.} On a Jetson-class CPU the per-window cost decomposes as feature
-extraction $\approx0.3$~ms, three XGBoost inferences $\approx0.05$~ms, and Python/IO
-overhead $\approx0.2$~ms, totalling well under $1$~ms per window. With $W{=}2000$ at $f_s
-{=}25$~kHz the acquisition latency to fill a window is $80$~ms, so the inference time is
-two orders of magnitude smaller than the data-arrival time---the pipeline is compute-bound
-by neither the Jetson nor the network and decisions issue effectively at the
-window-cadence ($12.5$ decisions per second at $25$~kHz, or $4$ per second at $1$~kHz with
-the $W{=}500$, $f_0{=}60$~Hz real-data settings). The onset trigger (Stage~0) runs
-continuously at one decision per cycle and is essentially free.
+\emph{Latency budget.} On the Jetson Orin Nano (Cortex-A78 cluster, $6$ cores, JetPack~6,
+no GPU offload for the tree cascade) the per-window cost decomposes as feature extraction
+$\approx0.3$~ms, three XGBoost inferences $\approx0.05$~ms, and Python/IO overhead
+$\approx0.2$~ms, totalling well under $1$~ms per window. At $W{=}500$ and the model rate
+$f_s{=}1$~kHz the acquisition latency to fill a window is $500$~ms, so the inference time
+is two orders of magnitude smaller than the data-arrival time and the pipeline is
+compute-bound by neither the Jetson nor the network; decisions issue effectively at the
+window-cadence ($4$ decisions per second here, scaling linearly with $f_s$). The onset
+trigger (Stage~0) runs continuously at one decision per cycle and is essentially free.
 
-\emph{Loopback validation.} Held-out repetition-$05$ recordings of the public real-motor
-dataset were streamed end-to-end over a direct Ethernet link to a Jetson with the
-real-data-trained cascade. Per-window detection macro-F1 was $0.95$, within-one severity
-$0.73$, and per-window phase macro-F1 $0.65$; \emph{after} per-recording aggregation---the
-realistic diagnostic unit and the lever identified in Section~IV-G---every streamed
-recording received the correct state, the correct severity to within one level, and the
-correct faulted phase. The deployed bundle deliberately excludes the
-compensation-baseline-dependent $I_2^{c}$ features so that the streamed window is fully
-self-contained; the equivalent uncompensated $|I_2|/|I_1|$ family carries the same signal.
-For a different motor or sensing chain, only the recording's $(f_s,f_0)$ pair and the
-baseline scale need to be re-estimated (a short healthy pre-roll suffices); the feature
-extractor is already parameterized in $(f_s,f_0)$ and the model can be re-fitted on the new
-rig with the same off-line pipeline. This closes the loop from the off-line evaluation of
-Sections~IV-A--IV-H to a runnable edge deployment, and supports the deployment claim of the
-Discussion.
+\emph{Measured validation on physical Jetson hardware.} Six held-out repetition-$05$
+recordings of the public real-motor dataset---one healthy (\texttt{HLT}) and five faulted
+recordings spanning all three phases at severities $\{10,30,40\}\%$---were streamed
+end-to-end from the host laptop to the Jetson Orin Nano. Each $5$~s recording was
+upsampled $1$~kHz~$\rightarrow$~$5$~kHz at the sender, Q15-packed into the $14$-byte
+frames, and transmitted over the CDC-ACM channel at $\approx 4880$~packets~$\text{s}^{-1}$;
+the receiver dropped zero bytes across the $30$~s sweep. Table~\ref{tab:realtime}
+reports per-recording verdicts side-by-side with ground truth. The cascade:
+(i)~detected the fault on $5/6$ recordings, the $\mathtt{HLT}$ healthy case being the lone
+false positive at the incipient-detection boundary already documented in Section~IV-G;
+(ii)~identified the faulted phase on $5/5$ faulted recordings ($100\%$ accuracy, consistent
+with the per-recording phase macro-F1 $0.93$--$0.95$ in Section~IV-G); and (iii)~estimated
+severity exactly on $2/5$ cases ($\mathtt{B30}$ and $\mathtt{A40}$) with $4/5$ within one
+severity level, the only large miss being the most incipient $\mathtt{B10}$ ($10\%$) case
+which was over-predicted as $40\%$---a pattern that mirrors the within-one accuracy
+$0.83$--$0.96$ reported for this bundle in Section~IV-G.
+The deployed bundle deliberately excludes the compensation-baseline-dependent
+$I_2^{c}$ features so that the streamed window is fully self-contained; the equivalent
+uncompensated $|I_2|/|I_1|$ family carries the same signal. For a different motor or
+sensing chain, only the recording's $(f_s,f_0)$ pair needs to be re-estimated (a short
+healthy pre-roll suffices); the feature extractor is already parameterized in $(f_s,f_0)$
+and the model can be re-fitted on the new rig with the same off-line pipeline. This closes
+the loop from the off-line evaluation of Sections~IV-A--IV-H to a runnable edge deployment,
+and supports the deployment claim of the Discussion.
 
 \begin{table}[!t]
-\caption{Real-time edge cascade on a Jetson: per-window vs.\ per-recording verdict on the
-held-out real-motor recordings streamed over Ethernet from the host. Per-recording
-aggregation is the realistic diagnostic unit and the recommended deployed decision.}
+\caption{Real-time edge cascade on a Jetson Orin Nano (Super): per-recording verdicts on
+six held-out repetition-$05$ recordings streamed over a USB type-C / CDC-ACM channel at
+$5$~kHz wire rate ($921{,}600$~baud, $0$~bytes dropped over $30$~s). Verdicts are the
+rolling $10$-window aggregate (majority-vote phase, median severity, healthy/faulty by
+window majority). The healthy $\mathtt{HLT}$ case is the false positive; phase ID is exact
+on every faulted recording.}
 \label{tab:realtime}
 \centering
 \footnotesize
-\begin{tabular}{@{}lcc@{}}
+\begin{tabular}{@{}lccc@{}}
 \toprule
-Task (metric) & Per-window & Per-recording \\
+Case (rep~$05$) & Ground truth & Jetson verdict & Outcome \\
 \midrule
-Detection (macro-F1)   & $0.95$ & all correct \\
-Severity (within-1)    & $0.73$ & all within one level \\
-Phase (macro-F1)       & $0.65$ & all correct \\
+\texttt{HLT} & Healthy            & FAULTY / $40\%$ / A & FP (detect) \\
+\texttt{B30} & Faulty / $30\%$ / B & FAULTY / $30\%$ / B & all correct \\
+\texttt{A30} & Faulty / $30\%$ / A & FAULTY / $40\%$ / A & phase / within-$1$ \\
+\texttt{C30} & Faulty / $30\%$ / C & FAULTY / $40\%$ / C & phase / within-$1$ \\
+\texttt{A40} & Faulty / $40\%$ / A & FAULTY / $40\%$ / A & all correct \\
+\texttt{B10} & Faulty / $10\%$ / B & FAULTY / $40\%$ / B & phase only \\
 \midrule
-Window inference (ms, CPU)   & \multicolumn{2}{c}{$<\!1$ (feat.\ $0.3$ $+$ XGB $0.05$)} \\
-Decision cadence              & \multicolumn{2}{c}{$4$--$12.5$ Hz (window-rate)} \\
+\multicolumn{4}{@{}l@{}}{Aggregate per-recording: detect $5/6$,
+phase $5/5$ faulted, severity within-$1$ $4/5$.}\\
+\midrule
+Window inference (ms, CPU)  & \multicolumn{3}{c}{$<\!1$ (feat.\ $0.3$ + XGB $0.05$ + IO $0.2$)} \\
+Decision cadence              & \multicolumn{3}{c}{$4$~Hz (window-rate at $f_s{=}1$~kHz, $W{=}500$)} \\
+Wire throughput               & \multicolumn{3}{c}{$\approx4880$~pkt/s, $0.55$~Mbps, $0$ B dropped} \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -454,7 +454,7 @@ deep alternative): raw $(3, W)$ window $\rightarrow$ multi-scale $1$-D conv stem
 phase-coupling graph attention $\rightarrow$ dilated-temporal (Mamba-surrogate) backbone
 $\rightarrow$ FiLM load conditioning $\rightarrow$ \{detect, severity~(KAN), phase\} heads
 with a current-balance PINN regularizer. Both tracks accept the same input and emit the same
-verdict; Section~IV-C reports their compared performance.}
+verdict; Section~IV-D reports their compared performance.}
 \label{fig:framework}
 \end{figure*}
 
@@ -495,6 +495,21 @@ real-motor set yields $1{,}235$ windows. Windows are grouped by operating point
 window from a record can appear in both training and test.
 
 \section{Performance Evaluation}
+This section evaluates the proposed framework end-to-end. \S IV-A specifies the
+implementation, splits, and metrics; \S IV-B reports the main cascade performance
+in-distribution and under the primary cross-load (LOLO) protocol; \S IV-C analyses
+\emph{why} the three tasks differ under LOLO and introduces the load-aware severity
+fix; \S IV-D compares eight model classes on identical splits and tests cross-model
+significance; \S IV-E--H isolate the contribution of every novel component
+(load-robustness mechanisms, biomedical features, load-invariant feature selection,
+and physics-consistent augmentation/tuning) through controlled ablations; \S IV-I
+quantifies probabilistic calibration, noise robustness, and online fault-onset
+detection; \S IV-J validates the cascade within-hardware on a publicly released
+real-motor dataset; \S IV-K reports the measured end-to-end real-time validation on
+a Jetson Orin Nano edge module; and \S IV-L positions the framework relative to the
+literature and lists the residual limitations.
+
+
 \subsection{Implementation and Evaluation Protocol}
 Features are computed in Python (NumPy/Pandas) and models trained with scikit-learn and XGBoost
 ($400$--$500$ trees, depth $5$, learning rate $0.05$, subsample/colsample $0.8$); deep models use
@@ -510,7 +525,7 @@ majority-vote phase). Scalers are fit on the training partition only, every benc
 identical folds, no per-model tuning is done on test folds, and all randomized components use fixed
 seeds.
 
-\subsection{Headline Results}
+\subsection{Main Cascade Performance: In-Distribution and Cross-Load}
 Table~\ref{tab:stages} summarizes the deployed cascade. \emph{The central finding is structural rather
 than numerical:} in-distribution, every stage exceeds $0.97$, but only LOLO separates the three tasks
 into those that genuinely generalize across operating points (detection, macro-F1 $0.948$; faulted
@@ -566,7 +581,7 @@ load-invariance.}
 \label{fig:summary}
 \end{figure}
 
-\subsection{Why the Tasks Differ: Cross-Load Analysis and the Load-Aware Fix}
+\subsection{Cross-Load Analysis and the Load-Aware Severity Fix}
 SHAP attribution shows detection and phase ride on the \emph{negative-sequence} ratio and angle and on
 inter-phase RMS differences---all load-invariant ratios---whereas an initial severity model built on
 absolute magnitudes \emph{collapsed} at the no-load extreme under LOLO (within-one $0.39$), because the
@@ -617,7 +632,7 @@ Detection F1 & 0.885 & 0.749 & 1.000 & 1.000 & 1.000 & 1.000 \\
 \end{tabular}
 \end{table}
 
-\subsection{Eight-Model Benchmark}
+\subsection{Comparative Model Evaluation}
 Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark} benchmark eight models on \emph{identical}
 leakage-safe splits, spanning classical feature classifiers, a tabular foundation model, and a sequence
 deep network. The first observation is that the \emph{in-distribution task is saturated}: the six
@@ -774,7 +789,7 @@ Phase & LOLO & 6.00 & 0.423 & n.s. \\
 \end{tabular}
 \end{table}
 
-\subsection{Load-Robustness Mechanisms (Ablations)}
+\subsection{Mechanism Ablations: Load-Robustness Components}
 Table~\ref{tab:mechanisms} ablates the four proposed mechanisms under LOLO, the protocol on which each
 is designed to help. The \emph{SCST} representation raises held-out-load severity within-one from $0.75$
 (raw-phase Stockwell) to $1.0$; consistent with the physics, its magnitude tensor cannot localize phase,
@@ -810,7 +825,114 @@ PC-Diff & current-balance exact; generation not controllable (negative) \\
 \end{tabular}
 \end{table}
 
-\subsection{Calibration, Onset, Noise, and Training Behaviour}
+\subsection{Biomedical Anomaly Features}
+Table~\ref{tab:bioablate} isolates the contribution of the biomedical anomaly block (Section~II-F). In
+distribution the features add nothing---the metrics are already saturated---but they substantially
+improve \emph{cross-load} (LOLO) generalization, the paper's central axis: detection LOLO macro-F1 rises
+from $0.948$ to $0.978$ ($+0.030$) and severity within-one-level accuracy from $0.942$ to $0.979$
+($+0.037$), while the already load-robust phase task is unchanged. By gradient-boosting gain the most
+useful biomedical features are the Hjorth mobility/complexity of the Park modulus, the
+Higuchi/Petrosian fractal dimension and permutation entropy of the residual, and dispersion entropy---all
+amplitude-scale-free, which is why they transfer across loads better than absolute-magnitude physics
+features and directly attack the cross-load severity bottleneck. This cross-domain import of biomedical
+complexity/irregularity features into stator-current diagnosis is, to our knowledge, new.
+
+\begin{table}[!t]
+\caption{Biomedical-feature ablation (XGBoost, identical leakage-safe splits): physics features vs.\
+physics $+$ biomedical anomaly features. Detection/phase: macro-F1; severity: within-one-level accuracy.}
+\label{tab:bioablate}
+\centering
+\footnotesize
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Task (metric) & Protocol & Physics & Physics$+$Bio & $\Delta$ \\
+\midrule
+Detection (macro-F1) & 10-fold GK & 0.977 & 0.977 & $+0.000$ \\
+Detection (macro-F1) & LOLO       & 0.948 & \textbf{0.978} & $\mathbf{+0.030}$ \\
+Severity (within-1)  & 10-fold GK & 0.997 & 0.997 & $+0.000$ \\
+Severity (within-1)  & LOLO       & 0.942 & \textbf{0.979} & $\mathbf{+0.037}$ \\
+Phase (macro-F1)     & 10-fold GK & 0.964 & 0.964 & $+0.000$ \\
+Phase (macro-F1)     & LOLO       & 0.997 & 0.997 & $+0.000$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Feature Importance and Load-Invariant Selection}
+\emph{Importance.} Fig.~\ref{fig:featimp} ranks the features that drive the models. For detection, SHAP
+attribution (a) is led by the Park-vector major axis and eccentricity, the zero/negative-sequence ratios,
+inter-phase RMS differences, and the EPVA severity factor---all physical inter-turn signatures,
+confirming the models exploit fault physics rather than dataset shortcuts. Among the novel biomedical
+features (b), the Park-modulus Hjorth parameters, the residual Higuchi/Petrosian fractal dimension and
+permutation entropy, and dispersion entropy carry the most weight on the (hardest) severity task,
+explaining their cross-load gains (Table~\ref{tab:bioablate}). \emph{Reduction.} Because many features are
+redundant or load-dependent, we reduce the bank with the load-invariance-regularized criterion of
+Section~II-F (LIR-mRMR). Fig.~\ref{fig:featred} compares it with plain mRMR: at a compact $k{=}10$
+features LIR-mRMR reaches cross-load (LOLO) severity within-one of $0.848$ versus mRMR's $0.740$ (a) while
+roughly halving the selected features' across-load drift (b, $0.18$ vs $0.38$), because it explicitly
+penalizes features whose class-conditional mean shifts with load. The selected subset is dimensionless and
+physics-traceable (negative-sequence angle $\sin/\cos$, Park eccentricity, $|I_1|$-normalized imbalance,
+per-phase skew)---a desirable property for safety-critical monitoring---and approaches the full
+72-feature accuracy with an order of magnitude fewer inputs. The $k{=}15$ dip reflects greedy-selection
+noise, not a benefit of additional features.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_feature_importance.pdf}
+\caption{Feature importance. (a) Stage-1 detection by mean $|$SHAP$|$ (top-12): Park-vector geometry,
+sequence-component ratios, inter-phase RMS differences, and the EPVA factor dominate---all physical
+inter-turn signatures. (b) Most influential \emph{biomedical} features (gradient-boosting gain) on the
+severity task: Park-modulus Hjorth parameters, residual fractal dimension and permutation entropy,
+dispersion entropy.}
+\label{fig:featimp}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.92\textwidth]{figs/fig_feature_reduction.pdf}
+\caption{Load-invariance-regularized feature reduction (LIR-mRMR) vs.\ plain mRMR, vs.\ feature-set size
+$k$. (a) Cross-load (LOLO) severity within-one accuracy---LIR-mRMR is higher at compact sizes. (b) Mean
+across-load drift of the selected features (lower is better)---LIR-mRMR roughly halves it by penalising
+load-unstable features.}
+\label{fig:featred}
+\end{figure*}
+
+\subsection{Hyperparameter Tuning and Physics-Consistent Augmentation}
+We finally isolate the effect of leakage-safe hyperparameter tuning and physics-consistent
+training-fold augmentation on the deployed XGBoost pipeline, evaluated under \emph{10-fold}
+StratifiedGroupKFold (the $147$ operating-point groups satisfy $n_\text{folds}\le n_\text{groups}$) and
+LOLO. Hyperparameters are tuned for cross-load generalization (Section~II-F) and frozen for both
+protocols; augmentation is applied to the training fold only and re-featurised. Table~\ref{tab:tuneaug}
+reports the three conditions. Tuning alone is marginal on the already-saturated metrics (consistent with
+the significance analysis of Section~IV-D), but \emph{augmentation is the decisive lever for cross-load
+generalization}: it raises severity within-one-level accuracy from $0.911$ to $0.935$ under LOLO and from
+$0.934$ to $0.976$ in-distribution, cutting the mean absolute error by $20\%$ ($0.917\!\rightarrow\!0.731$
+level), and lifts detection LOLO macro-F1 from $0.964$ to $0.977$, while faulted-phase identification
+remains at $0.997$. This confirms the augmentation principle: synthesising training windows toward unseen
+operating points---by jointly scaling the three phases, so the inter-phase imbalance and current balance
+are preserved---directly improves cross-load diagnosis without fabricating the fault signature.
+
+\begin{table}[!t]
+\caption{Effect of leakage-safe tuning and physics-consistent training-fold augmentation on the deployed
+XGBoost pipeline (10-fold StratifiedGroupKFold and LOLO). Detection/phase: macro-F1; severity:
+within-one-level accuracy. Best per row in bold.}
+\label{tab:tuneaug}
+\centering
+\footnotesize
+\begin{tabular}{@{}llccc@{}}
+\toprule
+Task (metric) & Protocol & Default & Tuned & Tuned$+$Aug \\
+\midrule
+Detection (macro-F1) & 10-fold GK & 0.976 & 0.976 & \textbf{0.979} \\
+Detection (macro-F1) & LOLO       & 0.964 & 0.964 & \textbf{0.977} \\
+Severity (within-1)  & 10-fold GK & 0.934 & 0.937 & \textbf{0.976} \\
+Severity (within-1)  & LOLO       & 0.911 & 0.908 & \textbf{0.935} \\
+Phase (macro-F1)     & 10-fold GK & \textbf{0.964} & 0.936 & \textbf{0.964} \\
+Phase (macro-F1)     & LOLO       & 0.994 & \textbf{0.997} & \textbf{0.997} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Robustness, Calibration, and Onset Detection}
 Stage-1 probabilities are well calibrated (ECE $=0.021$, Brier $=0.021$), so the detector's confidence
 can gate maintenance actions directly. Conformalized quantile regression improves severity-interval
 coverage over naive quantiles, with group-conditional calibration noted as the remedy for residual
@@ -871,7 +993,7 @@ showing stable convergence without over-fitting.}
 \label{fig:metrics}
 \end{figure}
 
-\subsection{Hardware Validation (Within-Domain)}
+\subsection{Within-Hardware Validation on a Real Motor}
 All results so far are from simulation; we now train and test the same models \emph{on a real motor}.
 Using the public ibarram dataset~\cite{ibarram} (a $0.75$~hp IM, three-phase current at $1$~kHz, no load;
 $65$ recordings $=13$ classes $\times 5$ repetitions), we evaluate every model within-hardware under two
@@ -937,114 +1059,7 @@ simulation-to-reality gap.}
 \label{fig:hwcm}
 \end{figure*}
 
-\subsection{Biomedical Anomaly Features (Ablation)}
-Table~\ref{tab:bioablate} isolates the contribution of the biomedical anomaly block (Section~II-F). In
-distribution the features add nothing---the metrics are already saturated---but they substantially
-improve \emph{cross-load} (LOLO) generalization, the paper's central axis: detection LOLO macro-F1 rises
-from $0.948$ to $0.978$ ($+0.030$) and severity within-one-level accuracy from $0.942$ to $0.979$
-($+0.037$), while the already load-robust phase task is unchanged. By gradient-boosting gain the most
-useful biomedical features are the Hjorth mobility/complexity of the Park modulus, the
-Higuchi/Petrosian fractal dimension and permutation entropy of the residual, and dispersion entropy---all
-amplitude-scale-free, which is why they transfer across loads better than absolute-magnitude physics
-features and directly attack the cross-load severity bottleneck. This cross-domain import of biomedical
-complexity/irregularity features into stator-current diagnosis is, to our knowledge, new.
-
-\begin{table}[!t]
-\caption{Biomedical-feature ablation (XGBoost, identical leakage-safe splits): physics features vs.\
-physics $+$ biomedical anomaly features. Detection/phase: macro-F1; severity: within-one-level accuracy.}
-\label{tab:bioablate}
-\centering
-\footnotesize
-\begin{tabular}{@{}llccc@{}}
-\toprule
-Task (metric) & Protocol & Physics & Physics$+$Bio & $\Delta$ \\
-\midrule
-Detection (macro-F1) & 10-fold GK & 0.977 & 0.977 & $+0.000$ \\
-Detection (macro-F1) & LOLO       & 0.948 & \textbf{0.978} & $\mathbf{+0.030}$ \\
-Severity (within-1)  & 10-fold GK & 0.997 & 0.997 & $+0.000$ \\
-Severity (within-1)  & LOLO       & 0.942 & \textbf{0.979} & $\mathbf{+0.037}$ \\
-Phase (macro-F1)     & 10-fold GK & 0.964 & 0.964 & $+0.000$ \\
-Phase (macro-F1)     & LOLO       & 0.997 & 0.997 & $+0.000$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Feature Importance and Reduction}
-\emph{Importance.} Fig.~\ref{fig:featimp} ranks the features that drive the models. For detection, SHAP
-attribution (a) is led by the Park-vector major axis and eccentricity, the zero/negative-sequence ratios,
-inter-phase RMS differences, and the EPVA severity factor---all physical inter-turn signatures,
-confirming the models exploit fault physics rather than dataset shortcuts. Among the novel biomedical
-features (b), the Park-modulus Hjorth parameters, the residual Higuchi/Petrosian fractal dimension and
-permutation entropy, and dispersion entropy carry the most weight on the (hardest) severity task,
-explaining their cross-load gains (Table~\ref{tab:bioablate}). \emph{Reduction.} Because many features are
-redundant or load-dependent, we reduce the bank with the load-invariance-regularized criterion of
-Section~II-F (LIR-mRMR). Fig.~\ref{fig:featred} compares it with plain mRMR: at a compact $k{=}10$
-features LIR-mRMR reaches cross-load (LOLO) severity within-one of $0.848$ versus mRMR's $0.740$ (a) while
-roughly halving the selected features' across-load drift (b, $0.18$ vs $0.38$), because it explicitly
-penalizes features whose class-conditional mean shifts with load. The selected subset is dimensionless and
-physics-traceable (negative-sequence angle $\sin/\cos$, Park eccentricity, $|I_1|$-normalized imbalance,
-per-phase skew)---a desirable property for safety-critical monitoring---and approaches the full
-72-feature accuracy with an order of magnitude fewer inputs. The $k{=}15$ dip reflects greedy-selection
-noise, not a benefit of additional features.
-
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=0.92\textwidth]{figs/fig_feature_importance.pdf}
-\caption{Feature importance. (a) Stage-1 detection by mean $|$SHAP$|$ (top-12): Park-vector geometry,
-sequence-component ratios, inter-phase RMS differences, and the EPVA factor dominate---all physical
-inter-turn signatures. (b) Most influential \emph{biomedical} features (gradient-boosting gain) on the
-severity task: Park-modulus Hjorth parameters, residual fractal dimension and permutation entropy,
-dispersion entropy.}
-\label{fig:featimp}
-\end{figure*}
-
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=0.92\textwidth]{figs/fig_feature_reduction.pdf}
-\caption{Load-invariance-regularized feature reduction (LIR-mRMR) vs.\ plain mRMR, vs.\ feature-set size
-$k$. (a) Cross-load (LOLO) severity within-one accuracy---LIR-mRMR is higher at compact sizes. (b) Mean
-across-load drift of the selected features (lower is better)---LIR-mRMR roughly halves it by penalising
-load-unstable features.}
-\label{fig:featred}
-\end{figure*}
-
-\subsection{Hyperparameter Tuning and Data Augmentation}
-We finally isolate the effect of leakage-safe hyperparameter tuning and physics-consistent
-training-fold augmentation on the deployed XGBoost pipeline, evaluated under \emph{10-fold}
-StratifiedGroupKFold (the $147$ operating-point groups satisfy $n_\text{folds}\le n_\text{groups}$) and
-LOLO. Hyperparameters are tuned for cross-load generalization (Section~II-F) and frozen for both
-protocols; augmentation is applied to the training fold only and re-featurised. Table~\ref{tab:tuneaug}
-reports the three conditions. Tuning alone is marginal on the already-saturated metrics (consistent with
-the significance analysis of Section~IV-D), but \emph{augmentation is the decisive lever for cross-load
-generalization}: it raises severity within-one-level accuracy from $0.911$ to $0.935$ under LOLO and from
-$0.934$ to $0.976$ in-distribution, cutting the mean absolute error by $20\%$ ($0.917\!\rightarrow\!0.731$
-level), and lifts detection LOLO macro-F1 from $0.964$ to $0.977$, while faulted-phase identification
-remains at $0.997$. This confirms the augmentation principle: synthesising training windows toward unseen
-operating points---by jointly scaling the three phases, so the inter-phase imbalance and current balance
-are preserved---directly improves cross-load diagnosis without fabricating the fault signature.
-
-\begin{table}[!t]
-\caption{Effect of leakage-safe tuning and physics-consistent training-fold augmentation on the deployed
-XGBoost pipeline (10-fold StratifiedGroupKFold and LOLO). Detection/phase: macro-F1; severity:
-within-one-level accuracy. Best per row in bold.}
-\label{tab:tuneaug}
-\centering
-\footnotesize
-\begin{tabular}{@{}llccc@{}}
-\toprule
-Task (metric) & Protocol & Default & Tuned & Tuned$+$Aug \\
-\midrule
-Detection (macro-F1) & 10-fold GK & 0.976 & 0.976 & \textbf{0.979} \\
-Detection (macro-F1) & LOLO       & 0.964 & 0.964 & \textbf{0.977} \\
-Severity (within-1)  & 10-fold GK & 0.934 & 0.937 & \textbf{0.976} \\
-Severity (within-1)  & LOLO       & 0.911 & 0.908 & \textbf{0.935} \\
-Phase (macro-F1)     & 10-fold GK & \textbf{0.964} & 0.936 & \textbf{0.964} \\
-Phase (macro-F1)     & LOLO       & 0.994 & \textbf{0.997} & \textbf{0.997} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Real-Time Edge Testing on NVIDIA Jetson}
+\subsection{Real-Time Edge Deployment on a Jetson Orin Nano}
 \label{sec:realtime}
 To verify that the deployed cascade is actually deployable, we built an end-to-end real-time
 streaming pipeline and ran it on physical NVIDIA Jetson hardware: a host laptop transmits
@@ -1132,19 +1147,19 @@ yellow~$=$~within one severity level, red~$=$~wrong) and the per-window latency 
 three execution modes (CPU, GPU, accelerated CPU). Table~\ref{tab:realtime} reports the
 same verdicts in tabular form. Concretely:
 (i)~detection succeeded on $5/6$ recordings, the $\mathtt{HLT}$ healthy case being the lone
-false positive at the incipient-detection boundary already documented in Section~IV-G---a
+false positive at the incipient-detection boundary already documented in Section~IV-J---a
 known weakness of the deployed bundle on real-motor data, traceable to the absent healthy
 baseline in a single-window stream;
 (ii)~faulted-phase identification succeeded on $5/5$ faulted recordings ($100\%$ accuracy,
-matching the per-recording phase macro-F1 $0.93$--$0.95$ measured in Section~IV-G);
+matching the per-recording phase macro-F1 $0.93$--$0.95$ measured in Section~IV-J);
 and (iii)~severity was exact on $2/5$ cases ($\mathtt{B30}$ and $\mathtt{A40}$) and within
 one severity level on $4/5$, with the only large miss being the most incipient $\mathtt{B10}$
 ($10\%$) case over-predicted as $40\%$, mirroring the within-one accuracy $0.83$--$0.96$
-reported for this bundle in Section~IV-G. \emph{Operational interpretation.} The deployed
+reported for this bundle in Section~IV-J. \emph{Operational interpretation.} The deployed
 pipeline therefore correctly raises an alarm for every actual fault, names the
 right phase every time, and supplies a usable severity reading---the false-positive on
 healthy and the over-prediction of severity for the $10\%$ case are the two limitations a
-field operator would experience, both already characterized in Section~IV-G.
+field operator would experience, both already characterized in Section~IV-J.
 
 \begin{figure*}[!t]
 \centering
@@ -1200,7 +1215,7 @@ phase $5/5$ faulted, severity within-$1$ $4/5$.}\\
 \end{tabular}
 \end{table}
 
-\subsection{Discussion: Positioning and Deployment}
+\subsection{Discussion: Positioning, Limitations, and Future Work}
 The in-distribution figures are consistent with the best reported values for current-based stator
 diagnosis (typically $0.96$--$1.00$ accuracy~\cite{hussain2025,pietrzak2022,aasar2026}); the
 contribution here is not a higher in-distribution number---which the saturated benchmark shows is no
@@ -1213,7 +1228,7 @@ it consumes only the already-measured three-phase current, runs in well under a 
 a CPU, exposes interpretable physical quantities (the negative-sequence ratio and EPVA factor that drive
 a decision), provides calibrated probabilities with an online onset trigger suitable for a protection
 relay, and offers a foundation-model option (TabPFN-2.5) that is both the most load-robust detector and
-training-free. Within-hardware validation on a real motor (Section~IV-G) confirms that detection
+training-free. Within-hardware validation on a real motor (Section~IV-J) confirms that detection
 transfers (macro-F1 up to $0.99$) and severity is usable (within-one $\geq0.86$); per-window
 faulted-phase localization is weak (macro-F1 $0.72$) but per-recording aggregation---the realistic
 diagnostic unit---recovers it to $0.93$--$0.95$. The remaining limitations are that the load-robustness

@@ -212,29 +212,64 @@ interval supplies faulty windows; the pre-fault loaded region supplies matched-l
 \label{fig:events}
 \end{figure}
 
-\subsection{Signal Preprocessing and Symmetrical-Component Decomposition}
-Each recording is segmented into windows of $W=2000$ samples (four $50$~Hz cycles); a $75\%$ overlap is
-used inside the short $0.8$~s fault interval and a sparser stride elsewhere. Crucially, the
-\emph{pre-fault} loaded region of every faulted record (genuinely healthy, since the fault is inserted
-only at $7.2$~s) is labelled healthy, providing matched-load healthy data at the same loads as the
-faulty windows and preventing the detector from separating classes by load level. To remove
-load-induced amplitude while preserving the inter-phase imbalance that encodes the fault, all three
-phases of a window are divided by a single per-recording scale; magnitude features are additionally
-divided by the within-window positive-sequence fundamental $|I_1|$ to obtain load-invariant variants.
-The Clarke transform underlying the EPVA and the Park ellipse is
+\subsection{Feature Families: Four Complementary Views of the Current}
+\label{sec:features-overview}
+A single feature family cannot describe an ITSC fault completely: the fault changes
+\emph{which} spectral line moves (a frequency-domain phenomenon),
+\emph{how} the per-phase distributions shift (a statistical phenomenon),
+\emph{when} the non-stationary signature emerges within a window (a time-frequency
+phenomenon), and \emph{how regular} the waveform becomes over many cycles (a complexity
+phenomenon). We therefore compute four complementary feature families on each window and
+concatenate them into a single $96$-dimensional vector (Table~\ref{tab:features}):
+(i) symmetrical-component and Park-vector descriptors derived from machine
+theory~\cite{cardoso2001,penman1994};
+(ii) per-phase statistical moments and inter-phase asymmetry features;
+(iii) a time-frequency sequence-component Stockwell tensor (SCST)~\cite{stockwell1996,singh2020};
+and (iv) signal-complexity / fractal / heart-rate-variability descriptors transferred from
+biomedical anomaly detection~\cite{hjorth1970,higuchi1988,richman2000,bandt2002,rostaghi2016,hrv1996,brennan2001}.
+The first family captures the deterministic asymmetry signature; the second captures
+empirical distribution shifts; the third localises the signature in time at the
+operating-point transient; the fourth captures non-spectral irregularity that survives
+when the absolute spectrum drifts with load.
+
+\subsection{Signal Preprocessing and Symmetrical-Component Descriptors}
+\label{sec:features-symcomp}
+\emph{Preprocessing.} Each recording is segmented (\S III-C) and each three-phase window is
+divided by a single per-recording amplitude scale (RMS of the case's healthy region across
+all three phases), which removes load-induced amplitude variation while preserving the
+inter-phase imbalance that encodes the fault. Magnitude-based features are additionally
+divided by the within-window $|I_1|$ to obtain dimensionless load-invariant $n_{\!*}$
+variants, motivated by the load-stability analysis of \S IV-G.
+
+\emph{Symmetrical components and Park vector.} The Clarke transform~\cite{cardoso2001}
+underlying the EPVA and Park-vector descriptors is
 \begin{equation}
 i_\alpha=\tfrac{2}{3}\!\left(i_a-\tfrac{1}{2}i_b-\tfrac{1}{2}i_c\right),\quad
 i_\beta=\tfrac{1}{\sqrt{3}}\left(i_b-i_c\right),
 \end{equation}
-and the fundamental symmetrical components follow from the Fortescue transform of the per-phase phasors:
+and the per-window phasors of $i_a, i_b, i_c$ (extracted via a $f_0$-tuned Goertzel)
+yield the Fortescue symmetrical components
 \begin{equation}
 \begin{bmatrix}\mathbf{I}_0\\\mathbf{I}_1\\\mathbf{I}_2\end{bmatrix}
 =\frac{1}{3}\begin{bmatrix}1&1&1\\ 1&a&a^{2}\\ 1&a^{2}&a\end{bmatrix}
 \begin{bmatrix}\mathbf{I}_a\\\mathbf{I}_b\\\mathbf{I}_c\end{bmatrix},\quad a=e^{\,j2\pi/3}.
 \end{equation}
-The negative-sequence ratio $|I_2|/|I_1|$ grows monotonically with the shorted-turn fraction and is the
-primary severity descriptor, while the angle $\angle\mathbf{I}_2$ separates into three
-$\sim$$120^{\circ}$-spaced clusters that identify the faulted phase.
+\emph{Significance.} The negative-sequence ratio $|I_2|/|I_1|$ grows monotonically with the
+shorted-turn fraction~\cite{cardoso2001,garcia2024,ruzimov2025} and is the primary severity
+descriptor; its angle $\angle\mathbf{I}_2$ separates into three $\sim$$120^{\circ}$-spaced
+clusters that identify the faulted phase. The zero-sequence ratio $|I_0|/|I_1|$ captures
+common-mode imbalance from supply unbalance and grounding asymmetry. A per-case
+\emph{compensated} value $I_2^c = \mathbf{I}_2 - \overline{\mathbf{I}_2}^{\text{healthy}}$
+suppresses the baseline asymmetry due to supply unbalance and isolates the fault
+contribution. The Extended Park's Vector Approach severity factor~\cite{cardoso2001}
+\begin{equation}
+\mathrm{SF}=\frac{A(2f_0)}{\mathrm{DC}}\;\text{of}\;|\mathbf{i}_P(t)|, \qquad
+|\mathbf{i}_P(t)|=\sqrt{i_\alpha^2+i_\beta^2},
+\end{equation}
+isolates the $2f_0$ component of the Park-vector modulus over its DC and is the strongest
+single severity scalar in the bank. The $2{\times}2$ covariance of $(i_\alpha,i_\beta)$
+gives the Park-ellipse eccentricity $e=\sqrt{1-(b/a)^2}$, axis ratio, and tilt---each
+zero for a balanced supply and growing monotonically with asymmetry.
 
 \emph{Window length: why four cycles.} The window length controls the entire feature
 bank. A $W$-sample window has spectral resolution
@@ -272,73 +307,234 @@ $20$   & $10{,}000$ & $400$~ms & $2.5$~Hz & $2$  & yes; too few examples \\
 \end{tabular}
 \end{table}
 
-\subsection{Stockwell-Based Time-Frequency Analysis}
-For a time-frequency representation we form the instantaneous symmetrical-component streams from the
-analytic (Hilbert) signal and the Fortescue transform, and apply a band-limited Stockwell transform to
-each, stacking the positive/negative/zero $|S|$ maps into a three-channel \emph{sequence-component
-Stockwell tensor} (SCST). The negative-sequence channel carries the load-invariant inter-turn
-signature, and the frequency-dependent resolution of the Stockwell transform tracks the $2f_0$ EPVA line
-and slip sidebands better than a fixed-window spectrogram. Because symmetrical-component
-\emph{magnitudes} are phase-agnostic, faulted-phase localization uses the negative-sequence \emph{angle}
-rather than the magnitude tensor (Section~IV-E).
+\subsection{Spectral Descriptors: Harmonic Content}
+\label{sec:features-spectral}
+Inter-turn faults introduce specific spectral structure in addition to the
+fundamental~\cite{penman1994}. Two scalars summarise this on each window: the per-phase
+third-harmonic ratio $R_3 = |\mathbf{I}(3f_0)| / |\mathbf{I}(f_0)|$, sensitive to the
+$3$rd-harmonic asymmetry produced by the inter-turn loop, and the total harmonic
+distortion $\mathrm{THD} = \sqrt{\sum_{k\geq 2} |\mathbf{I}(kf_0)|^2}/|\mathbf{I}(f_0)|$
+on per-phase and three-phase mean. The harmonic bins are computed from $(f_s, f_0)$ so
+the same extractor serves the $25$~kHz / $50$~Hz simulation and the $1$~kHz / $60$~Hz
+experimental data (Section~III). We do \emph{not} pre-compute the full Penman sideband
+family $f_0[1\!\pm\!n(1\!-\!s)/p]$~\cite{penman1994} because (i)~slip $s$ is not directly
+measured on the public real-motor set and (ii)~the SCST representation
+(\S~\ref{sec:features-tf}) recovers the same information in a frequency-localised form
+that the deep model can exploit.
 
-\subsection{Time-Domain and Spectral Characteristics}
-Physically grounded descriptors capture the fault signature. The EPVA severity factor is
-\begin{equation}
-\mathrm{SF}=\frac{A(2f_0)}{\mathrm{DC}}\ \text{of}\ |\mathbf{i}_P(t)|=\sqrt{i_\alpha^2+i_\beta^2},
-\end{equation}
-where $A(2f_0)$ is the amplitude of the $100$~Hz component of the Park-vector modulus. From the
-$2{\times}2$ covariance of $(i_\alpha,i_\beta)$ we derive the Park ellipse eccentricity
-$e=\sqrt{1-(b/a)^2}$, axis ratio, and tilt. Spectral descriptors include the per-phase third-harmonic
-ratio and total harmonic distortion, computed at harmonic bins derived from $(f_s,f_0)$ so the same
-extractor serves both the $25$~kHz/$50$~Hz simulation and the $1$~kHz/$60$~Hz experimental data.
+\subsection{Statistical and Inter-Phase Asymmetry Features}
+\label{sec:features-stats}
+The third family captures \emph{distributional} shifts that the symmetrical-component
+descriptors do not see. Per-phase root-mean-square, peak, crest factor, standard deviation,
+skewness, and kurtosis are computed on each of the three phases ($6\!\times\!3 = 18$
+features); their inter-phase differences (between phases $A$, $B$, $C$, in pairs)
+\emph{directly encode asymmetry} and are the per-phase analogue of $|I_2|$. A categorical
+$\arg\max$-of-RMS feature flags the dominant-current phase, which empirically resolves the
+$\angle I_2$ wrap-around for low-severity windows. All magnitude features have
+$|I_1|$-normalised counterparts (the $n_{\!*}$ variants), which Section~IV-G shows are the
+load-stable subset retained by the LIR-mRMR selection criterion. Severity is encoded as an
+ordinal rank $r\in\{0,\dots,6\}$ over $\{0.3,0.5,1,2,3,4,5\}\%$ so the error metric
+(within-one-level accuracy, MAE in levels, QWK) respects the ordering of the underlying
+shorted-turn fraction.
 
-\subsection{Statistical Feature Extraction}
-Per-phase root-mean-square, peak, crest factor, standard deviation, skewness, and kurtosis are computed,
-together with their inter-phase differences (which directly encode asymmetry) and the
-$|I_1|$-normalized magnitude variants. With the symmetrical-component, EPVA, ellipse, and harmonic
-quantities this yields the $72$-feature bank summarized in Table~\ref{tab:features}. Severity is encoded
-as an ordinal rank $r\in\{0,\dots,6\}$ over $\{0.3,0.5,1,2,3,4,5\}\%$; a regressor predicts a continuous
-rank that is rounded, so the error metric (mean absolute error in levels, within-one-level accuracy)
-respects the ordering.
+\subsection{Time-Frequency Representation: Sequence-Component Stockwell Tensor}
+\label{sec:features-tf}
+The fourth-family-bridging representation is built from the Stockwell
+transform~\cite{stockwell1996}, a hybrid of the short-time Fourier transform and the
+continuous wavelet transform that has \emph{frequency-dependent} time resolution: it
+returns absolute phase, narrower bins at high frequency, and wider bins around the
+fundamental---precisely the property needed to localise the $2f_0$ EPVA line and the
+slip-modulated sidebands without the fixed-window compromise of a spectrogram.
+\emph{SCST construction.} Each phase current is converted to its analytic representation
+via the Hilbert transform and combined into instantaneous symmetrical-component streams
+$i_0(t), i_1(t), i_2(t)$ using the Fortescue matrix of~(3); a band-limited Stockwell
+transform is applied to each stream over the diagnostic band
+$[0.5 f_0, 10 f_0]$, and the three magnitude maps $|S_0|, |S_1|, |S_2|$ are stacked into a
+single $3$-channel time-frequency tensor (the SCST). \emph{Significance.} The
+negative-sequence channel $|S_2(t,f)|$ carries the load-invariant inter-turn signature
+localised in both time and frequency, which is what a $2$-D CNN can exploit
+(Section~IV-E, where the SCST raises cross-load severity within-one from $0.75$ to
+$1.0$). Because the symmetrical-component \emph{magnitudes} are phase-agnostic by
+construction, the magnitude tensor cannot localise the faulted phase; phase
+identification therefore continues to use the negative-sequence \emph{angle} as in
+\S~\ref{sec:features-symcomp}.
 
-\begin{table}[!t]
-\caption{Feature groups (72 features per window).}
+\begin{table*}[!t]
+\caption{The $96$-feature per-window bank, organised by the four complementary families
+of \S~\ref{sec:features-overview}. The first three families ($72$ features) constitute
+the physics+statistical bank used by the deployed XGBoost cascade; the fourth family
+($24$ biomedical features) is appended in the load-robustness ablation
+(Table~\ref{tab:bioablate}). All quantities are computed per window; magnitude families
+have $|I_1|$-normalised counterparts ($n_{\!*}$ variants).}
 \label{tab:features}
 \centering
 \footnotesize
-\begin{tabular}{@{}p{0.28\columnwidth}p{0.60\columnwidth}@{}}
+\begin{tabular}{@{}p{0.18\textwidth} c p{0.35\textwidth} p{0.27\textwidth} c@{}}
 \toprule
-Group & Features \\
+Family / group & \# & Features & What it captures about ITSC & Refs \\
 \midrule
-Symmetrical comp. & $|I_0|,|I_1|,|I_2|$; $|I_2|/|I_1|$, $|I_0|/|I_1|$; $\angle I_1,\angle I_2$ ($+\sin/\cos$); compensated $I_2^{c}$ \\
-EPVA / Park & severity factor; Park-modulus mean/std; ellipse axes, eccentricity, axis ratio, tilt \\
-Harmonics & third-harmonic ratio and THD (per phase, mean) \\
-Per-phase stats & RMS, peak, crest, std, skew, kurtosis ($\times3$) and inter-phase differences \\
-Load-invariant & $|I_1|$-normalized variants of all magnitude features \\
-\textbf{Biomedical (novel)} & HRV cycle-to-cycle waveform distance \& Poincar\'e SD1/SD2; Hjorth mobility/complexity; permutation/spectral/sample/dispersion entropy; Higuchi/Katz/Petrosian fractal dimension (on the residual \& Park modulus) \\
+\textbf{(i) Symmetrical-component / Park}
+& $24$
+& $|I_0|, |I_1|, |I_2|$; ratios $|I_2|/|I_1|, |I_0|/|I_1|$; angles $\angle I_1, \angle I_2$
+  with $\sin/\cos$; compensated $I_2^{c}$ (abs, ratio, angle); EPVA severity factor;
+  Park-modulus mean/std; Park-ellipse major, minor, eccentricity, axis ratio, tilt
+& \emph{Deterministic asymmetry signature.} $|I_2|/|I_1|$ scales monotonically with $\mu$
+  (severity); $\angle I_2$ in three $120^\circ$ clusters identifies the faulted phase;
+  $|I_0|/|I_1|$ flags supply unbalance vs.\ ITSC; EPVA isolates the $2f_0$ Park-modulus
+  line, the strongest single severity scalar
+& \cite{cardoso2001,garcia2024,ruzimov2025,mazzoletti2025} \\[2pt]
+\textbf{(ii) Spectral / harmonic}
+& $\phantom{0}6$
+& $3$rd-harmonic ratio $R_3$ (per-phase $\!\times 3$, mean); THD (per-phase, mean)
+& \emph{Harmonic distortion of the fault loop.} The inter-turn loop produces $3$rd-order
+  asymmetry; THD captures aggregate spectral spread
+& \cite{penman1994,singh2020} \\[2pt]
+\textbf{(iii) Statistical / inter-phase}
+& $42$
+& RMS, peak, crest, std, skew, kurtosis (per phase, $6\!\times\!3$); pairwise inter-phase
+  differences (RMS/peak/crest/std$\,\times\,3$ pairs); $\arg\max$-of-RMS categorical;
+  load-invariant $n_{\!*}$ variants of all magnitude features
+& \emph{Per-phase distributional shifts.} Higher-order moments are sensitive to the
+  non-sinusoidal distortion in the faulted phase; inter-phase differences encode
+  asymmetry directly without sequence-domain conversion
+& \cite{pietrzak2022,aasar2026} \\[2pt]
+\multicolumn{4}{l}{\textsl{Subtotal (deployed XGBoost cascade)}} & $\mathbf{72}$ \\
+\midrule
+\textbf{(iv) Biomedical anomaly}
+& $24$
+& HRV cycle-to-cycle waveform distance and Poincar\'{e} SD1/SD2 of the per-cycle RMS;
+  Hjorth mobility and complexity; permutation, spectral, sample, dispersion entropy;
+  Higuchi, Katz, Petrosian fractal dimension---all computed on the \emph{residual} signal
+  (current $-$ fundamental) and on the Park-vector modulus
+& \emph{Non-spectral irregularity / complexity.} Captures how regular the waveform is
+  rather than which lines moved; the residual is anomaly-rich because the fundamental is
+  removed; amplitude-scale-free measures transfer across loads (\S IV-G)
+& \cite{hrv1996,brennan2001,hjorth1970,bandt2002,richman2000,rostaghi2016,higuchi1988} \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Biomedical Anomaly Features}
+\label{sec:features-bio}
+The fourth family captures \emph{non-spectral irregularity}: how predictable the waveform
+is, regardless of which spectral lines exist. We transfer features routinely used in
+ECG/EEG anomaly detection to the motor-current setting---a view absent from the ITSC
+literature, which treats the current as a deterministic sum of sinusoids and asks
+\emph{which line moved} rather than \emph{how regular} the waveform is. The premise is
+that an inter-turn short makes the waveform less regular within and across cycles, which
+signal-complexity measures quantify directly. Crucially, these are computed on the
+\emph{residual} (current minus its fitted fundamental) and on the Park-vector modulus,
+not on the raw current whose clean fundamental is trivially predictable. Three
+sub-groups are used.
+
+\emph{(a) HRV-on-current.} The most physically faithful import, since an ITSC \emph{is}
+cycle-to-cycle irregularity: cycle-to-cycle waveform distance to the median cycle, and
+Poincar\'e SD$1$, SD$2$, SD$1$/SD$2$~\cite{hrv1996,brennan2001} of the per-cycle RMS
+series. Each fundamental cycle is treated as a heartbeat; the per-cycle RMS series is the
+direct analogue of the inter-beat-interval series in HRV.
+
+\emph{(b) Complexity scalars.} Hjorth mobility and complexity~\cite{hjorth1970}
+(amplitude-scale-free time-domain derivatives that quantify the rate of zero-crossings
+and the smoothness of the derivative), permutation entropy~\cite{bandt2002} (rank-based,
+robust to monotone amplitude transforms), spectral entropy (Shannon entropy of the
+normalised power spectrum, captures spectral flatness), sample entropy~\cite{richman2000}
+(self-similarity), and dispersion entropy~\cite{rostaghi2016} (quantises the signal into
+classes and measures the entropy of the resulting symbol sequence).
+
+\emph{(c) Fractal dimension.} Higuchi~\cite{higuchi1988}, Katz, and Petrosian fractal
+dimensions, which quantify the self-affine roughness of the residual on multiple scales.
+
+\emph{Why these specifically.} The complexity and fractal members are amplitude-scale-free
+by construction, which the LOLO ablation of Table~\ref{tab:bioablate} confirms transfers
+across loads better than absolute spectral features. The block adds no heavy computation
+(no $O(N^2)$ recurrence matrices) and is appended to the $72$-feature physics+statistical
+bank for a total of $96$ per-window features.
+
+\subsection{Per-Task Discriminative Features}
+\label{sec:features-disc}
+The three diagnostic tasks (detection, severity, faulted phase) do \emph{not} rely on the
+same features---a fact directly confirmed by the SHAP attribution of \S~IV-G,
+the load-stability analysis of the LIR-mRMR selection of \S~IV-G, and the biomedical
+ablation of \S~IV-F. Table~\ref{tab:discfeat} maps the dominant discriminators per task,
+distinguishing the in-distribution drivers from the cross-load (LOLO) ones, so the reader
+can see at a glance which family carries which task.
+
+\emph{Detection (\S~IV-B).} In-distribution detection is driven by physics: the Park-vector
+major axis and eccentricity, the negative-sequence ratio $|I_2|/|I_1|$, the zero-sequence
+ratio $|I_0|/|I_1|$, the inter-phase RMS differences, and the EPVA severity factor lead
+the SHAP attribution---an inter-turn short bends the Park trajectory into a perceptible
+ellipse and breaks the symmetric-component balance, both reflected in these scalars.
+\emph{Cross-load} detection is the one cell where the biomedical features measurably
+\emph{add} discriminative power: Table~\ref{tab:bioablate} reports a $+0.030$ LOLO macro-F1
+gain when appended, traced (\S~IV-G, Fig.~\ref{fig:featimp}b) to the Park-modulus Hjorth
+parameters and the residual permutation/dispersion entropy---all amplitude-scale-free and
+therefore robust to the load-induced amplitude shift that displaces the absolute physics
+magnitudes.
+
+\emph{Severity assessment (\S~IV-B, \S~IV-C).} The strongest in-distribution severity
+discriminator is a \emph{single} physics scalar---the EPVA severity factor $\mathrm{SF}$
+of (4), with $|I_2|/|I_1|$ and the Park-ellipse eccentricity close behind. Because all
+three scale with the operating point, these are also the features most affected by the
+LOLO load shift; the load-aware fix of \S~IV-C (supplying the measured load) and the
+biomedical features together close the gap. Among the biomedical block, the residual
+Higuchi/Petrosian fractal dimensions and the dispersion entropy carry the most severity
+weight (Fig.~\ref{fig:featimp}b), contributing the $+0.037$ LOLO within-one gain of
+Table~\ref{tab:bioablate}.
+
+\emph{Faulted-phase identification (\S~IV-B).} This is the task that uses essentially
+\emph{one} feature: the negative-sequence angle $\angle I_2$ (encoded as $\sin/\cos$ for
+wrap-free use), which is by construction load-invariant and clusters in three
+$120^\circ$-spaced sectors. The per-phase $\arg\max$-of-RMS and the inter-phase RMS
+differences play a backup role for low-severity windows where $\angle I_2$ is noisy. The
+biomedical block contributes essentially nothing here ($+0.000$ LOLO macro-F1,
+Table~\ref{tab:bioablate})---phase identification is a pure inter-phase asymmetry problem
+that the symmetrical-component angle already solves, so adding signal-complexity scalars
+to a phase-agnostic problem has no effect, exactly as predicted.
+
+\begin{table}[!t]
+\caption{Per-task dominant discriminative features. ``In-dist.'' columns are SHAP top-ranked
+features under StratifiedGroupKFold; ``LOLO'' columns are the features whose presence most
+improves cross-load accuracy. \textit{Italicised} entries are amplitude-scale-free.
+Biomedical features are decisive for cross-load detection and severity but contribute
+essentially nothing to phase identification.}
+\label{tab:discfeat}
+\centering
+\footnotesize
+\begin{tabular}{@{}p{0.18\columnwidth}p{0.36\columnwidth}p{0.36\columnwidth}@{}}
+\toprule
+Task & In-distribution drivers (physics-dominated) & LOLO drivers (load-stable) \\
+\midrule
+\textbf{Detection}
+& Park major axis; Park eccentricity; $|I_2|/|I_1|$; $|I_0|/|I_1|$; inter-phase RMS diffs;
+  EPVA SF
+& \emph{Park-modulus Hjorth} (mobility, complexity); \emph{residual permutation entropy};
+  \emph{dispersion entropy}; $\mathrm{LIR\text{-}mRMR}$ load-invariant subset
+  ($+0.030$ LOLO F1) \\
+\midrule
+\textbf{Severity}
+& EPVA SF (dominant); $|I_2|/|I_1|$; Park-ellipse eccentricity; $|I_2^c|/|I_1|$
+& Measured load + load-invariant $n_{\!*}$ features (\S~IV-C, $0.73\!\rightarrow\!0.95$);
+  \emph{Higuchi / Petrosian FD}; \emph{dispersion entropy}; \emph{Hjorth complexity}
+  ($+0.037$ LOLO within-1) \\
+\midrule
+\textbf{Phase ID}
+& $\angle I_2$ ($\sin, \cos$, \emph{essentially the single feature}); $\arg\max$-of-RMS;
+  per-phase RMS differences
+& Same as in-distribution---\emph{$\angle I_2$ is intrinsically load-invariant}; biomedical
+  contribution $+0.000$ (Table~\ref{tab:bioablate}). Per-recording majority vote of $\angle I_2$
+  closes the residual per-window noise on real hardware (\S~IV-J) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Biomedical Anomaly Features}
-Beyond the physics descriptors we introduce a block of \emph{biomedical anomaly-detection features}
-transferred from ECG/EEG/heart-rate-variability (HRV) analysis---a view absent from the motor-fault
-literature, which treats the current as a deterministic sum of sinusoids and asks \emph{which spectral
-line moves}, rather than \emph{how regular} the waveform is. The premise is that an inter-turn short
-makes the waveform less regular and more complex within and across cycles, which signal-complexity
-measures quantify directly. Crucially, these are computed on the \emph{residual} (current minus its
-fitted fundamental) and the Park-vector modulus---not the raw current, whose clean fundamental is
-trivially predictable. Three groups are used: (i) an \emph{HRV-on-current} block that treats each
-fundamental cycle as a heartbeat---cycle-to-cycle waveform distance to the median cycle and
-Poincar\'e descriptors (SD1, SD2, SD1/SD2) of the per-cycle RMS series, the direct analog of
-HRV~\cite{hrv1996,brennan2001} and the most physically faithful import, since the fault \emph{is}
-cycle-to-cycle irregularity; (ii) complexity scalars---Hjorth mobility and complexity~\cite{hjorth1970},
-permutation~\cite{bandt2002} and spectral entropy, sample~\cite{richman2000} and dispersion
-entropy~\cite{rostaghi2016}; and (iii) fractal dimension---Higuchi~\cite{higuchi1988}, Katz and
-Petrosian. The complexity and fractal members are amplitude-scale-free, which (Table~\ref{tab:bioablate})
-aids cross-load generalization. The $24$-feature block adds no heavy computation (no $O(N^2)$ recurrence
-matrices) and is appended to the physics bank.
+This task-specific feature structure is the reason the deployed pipeline is a
+\emph{cascade} rather than a single multi-class model: each stage selects only the
+features that discriminate \emph{its} task. Stage~1 uses all $96$ features (so the
+biomedical block contributes to cross-load detection); Stage~2 uses the load-invariant
+subset $+$ measured load (so the deterministic-asymmetry features that drift with load are
+excluded); Stage~3 uses the full bank but is effectively driven by $\angle I_2$ (so
+load-invariance is automatic). Section~IV-G visualises the per-task feature rankings; the
+present subsection summarises them as a concise design constraint on the cascade.
 
 \subsection{Data Augmentation and Feature Selection}
 \emph{Feature selection.} We extend minimum-redundancy--maximum-relevance with a load-instability
@@ -1454,6 +1650,8 @@ during start-up transient,'' \emph{IEEE Trans. Ind. Appl.}, vol. 61, no. 2, pp. 
 \bibitem{singh2020} M. Singh and A. G. Shaik, ``Incipient fault detection in stator windings of an
 induction motor using Stockwell transform and SVM,'' \emph{IEEE Trans. Instrum. Meas.}, vol. 69,
 no. 12, pp. 9496--9504, 2020.
+\bibitem{stockwell1996} R. G. Stockwell, L. Mansinha, and R. P. Lowe, ``Localization of the complex
+spectrum: The $S$ transform,'' \emph{IEEE Trans. Signal Process.}, vol. 44, no. 4, pp. 998--1001, 1996.
 \bibitem{pietrzak2022} P. Pietrzak and M. Wolkiewicz, ``Machine learning-based stator current
 data-driven PMSM stator winding fault diagnosis,'' \emph{Sensors}, vol. 22, no. 24, art. 9668, 2022.
 \bibitem{aasar2026} T. Aasar \emph{et al.}, ``Predicting stator winding short-circuit faults in

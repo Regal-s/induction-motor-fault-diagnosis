@@ -179,6 +179,96 @@ def _subsample(name, idx, y, quick):
     return np.concatenate(parts)
 
 
+# --------------------------------------------------------------------------- Modern (PatchTST/iTransformer/TimesNet + foundation models)
+# Caps and epoch budgets tuned so each model finishes in 1-4 h on a desktop CPU.
+_MODERN_CAP = {"PatchTST": 1500, "iTransformer": 2500, "TimesNet": 1500,
+               "TTM": 4000, "Chronos-Bolt": 4000}
+_MODERN_EPOCHS = {"PatchTST": 6, "iTransformer": 8, "TimesNet": 5}
+
+def run_modern_model(name, df, Xdec, task, quick):
+    import modern_models as mmod
+    y = _task_labels(df, task)
+    n_classes = TASKS[task]["n_classes"]
+    cap = _MODERN_CAP.get(name, 3000)
+    if quick:
+        cap = min(cap, 1000)
+    epochs = _MODERN_EPOCHS.get(name, 6)
+    if quick:
+        epochs = max(2, epochs // 2)
+
+    def cw(yt):
+        nb = np.bincount(yt, minlength=n_classes).astype(float)
+        return nb.sum() / (np.maximum(nb, 1) * n_classes)
+
+    out = {}
+    # ---- GroupKFold pooled OOF ----
+    oof = np.full(len(df), -1, dtype=int)
+    for tr, te in stratified_group_folds(df, y_col=_ycol(task)):
+        tr_use = _cap(tr, y, cap)
+        pred = mmod.train_predict(name, Xdec[tr_use], y[tr_use], Xdec[te],
+                                   n_classes, class_weight=cw(y[tr_use]), epochs=epochs)
+        oof[te] = pred
+    mask = oof >= 0
+    out["groupkfold"] = score(task, y[mask], oof[mask])
+
+    # ---- LOLO pooled ----
+    yt_all, yp_all = [], []
+    for L, tr, te in leave_one_load_out(df):
+        if not len(te):
+            continue
+        tr_use = _cap(tr, y, cap)
+        pred = mmod.train_predict(name, Xdec[tr_use], y[tr_use], Xdec[te],
+                                   n_classes, class_weight=cw(y[tr_use]), epochs=epochs)
+        yt_all.append(y[te]); yp_all.append(pred)
+    if yt_all:
+        out["lolo"] = score(task, np.concatenate(yt_all), np.concatenate(yp_all))
+    return out
+
+
+# --------------------------------------------------------------------------- Reservoir / ROCKET
+def run_rc_model(name, df, Xdec, task, quick):
+    import reservoir_models as rc
+    y = _task_labels(df, task)
+    n_classes = TASKS[task]["n_classes"]
+    cap = 4000 if quick else 6000
+
+    # per-model hyperparameters (kept compact so a full benchmark fits in tens of minutes)
+    kw = {
+        "ESN":    dict(n_reservoir=200 if quick else 300),
+        "NG-RC":  dict(n_taps=4, n_samples=20),
+        "ROCKET": dict(n_kernels=500 if quick else 1500),
+    }[name]
+
+    def cw(yt):
+        nb = np.bincount(yt, minlength=n_classes).astype(float)
+        w = nb.sum() / (np.maximum(nb, 1) * n_classes)
+        return w
+
+    out = {}
+    # ---- GroupKFold pooled OOF ----
+    oof = np.full(len(df), -1, dtype=int)
+    for tr, te in stratified_group_folds(df, y_col=_ycol(task)):
+        tr_use = _cap(tr, y, cap)
+        pred = rc.train_predict(name, Xdec[tr_use], y[tr_use], Xdec[te],
+                                n_classes, class_weight=cw(y[tr_use]), **kw)
+        oof[te] = pred
+    mask = oof >= 0
+    out["groupkfold"] = score(task, y[mask], oof[mask])
+
+    # ---- LOLO pooled ----
+    yt_all, yp_all = [], []
+    for L, tr, te in leave_one_load_out(df):
+        if not len(te):
+            continue
+        tr_use = _cap(tr, y, cap)
+        pred = rc.train_predict(name, Xdec[tr_use], y[tr_use], Xdec[te],
+                                n_classes, class_weight=cw(y[tr_use]), **kw)
+        yt_all.append(y[te]); yp_all.append(pred)
+    if yt_all:
+        out["lolo"] = score(task, np.concatenate(yt_all), np.concatenate(yp_all))
+    return out
+
+
 # --------------------------------------------------------------------------- xLSTM (deep)
 def run_xlstm(df, Xdec, task, quick):
     import xlstm_model as xm
@@ -262,7 +352,10 @@ def main():
 
     feature_models = ["LogReg", "SVM-RBF", "KNN", "MLP", "RandomForest", "XGBoost", "TabPFN-2.5"]
     deep_models = ["xLSTM"]
-    roster = feature_models + deep_models
+    rc_models   = ["ESN", "NG-RC", "ROCKET"]   # operate on decimated windows like xLSTM
+    modern_train = ["PatchTST", "iTransformer", "TimesNet"]    # modern trainable architectures
+    modern_fm    = ["TTM", "Chronos-Bolt"]                      # foundation-model encoders + head
+    roster = feature_models + deep_models + rc_models + modern_train + modern_fm
     if args.models:
         want = {m.strip() for m in args.models.split(",")}
         roster = [m for m in roster if m in want]
@@ -284,11 +377,11 @@ def main():
     # frozen-up-front faulty subframe (shared by severity & phase) keeps Xdec aligned
     faulty_mask = df["label"].to_numpy() == 1
 
-    # decimated windows for deep model (load lazily only if a deep model is in roster)
+    # decimated windows for deep / reservoir / modern models
     Xdec_full = None
-    if any(m in roster for m in deep_models):
+    if any(m in roster for m in (deep_models + rc_models + modern_train + modern_fm)):
         import xlstm_model as xm
-        log("loading + decimating windows.npy for deep model ...")
+        log("loading + decimating windows.npy for deep / reservoir / modern models ...")
         Xw = np.asarray(np.load(DS / "windows.npy"), np.float32)
         Xdec_full = xm.decimate(Xw, 8)
         del Xw
@@ -309,6 +402,12 @@ def main():
                 if name in deep_models:
                     Xd = Xdec_full[faulty_mask] if cfg["faulty_only"] else Xdec_full
                     res = run_xlstm(sub, Xd, task, args.quick)
+                elif name in rc_models:
+                    Xd = Xdec_full[faulty_mask] if cfg["faulty_only"] else Xdec_full
+                    res = run_rc_model(name, sub, Xd, task, args.quick)
+                elif name in (modern_train + modern_fm):
+                    Xd = Xdec_full[faulty_mask] if cfg["faulty_only"] else Xdec_full
+                    res = run_modern_model(name, sub, Xd, task, args.quick)
                 else:
                     res = run_feature_model(name, sub, None, cfg, task, args.quick)
                 results[name][task] = res

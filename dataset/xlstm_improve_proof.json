@@ -1,0 +1,16 @@
+{
+  "detection": {
+    "baseline": {
+      "f1": 0.9376158986739442,
+      "acc": 0.9411104879416713,
+      "sec": 250
+    },
+    "upgraded": {
+      "f1": 0.6996937606773461,
+      "acc": 0.7422882781828379,
+      "sec": 1265,
+      "changes": "physics channels(6) + augmentation + d_model96/3blocks/28ep"
+    },
+    "delta_f1": -0.2379
+  }
+}

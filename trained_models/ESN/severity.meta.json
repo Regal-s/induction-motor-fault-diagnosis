@@ -1,0 +1,14 @@
+{
+  "model": "ESN",
+  "task": "severity",
+  "n_train": 11760,
+  "n_features": 600,
+  "esn_params": {
+    "n_reservoir": 200,
+    "spectral_radius": 0.9,
+    "leak": 0.3
+  },
+  "train_seconds": 49.07,
+  "format": "reservoir weights (npz) + ridge classifier (joblib)",
+  "load_with": "see reservoir_models.ESNFeaturizer + joblib.load"
+}

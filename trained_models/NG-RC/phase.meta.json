@@ -1,0 +1,13 @@
+{
+  "model": "NG-RC",
+  "task": "phase",
+  "n_train": 11760,
+  "n_features": 180,
+  "ngrc_params": {
+    "n_taps": 4,
+    "n_samples": 20
+  },
+  "train_seconds": 9.69,
+  "format": "ridge classifier (joblib)",
+  "load_with": "joblib.load + reservoir_models._ngrc_features for new samples"
+}

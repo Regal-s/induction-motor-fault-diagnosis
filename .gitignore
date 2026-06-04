@@ -37,3 +37,23 @@ dataset/scst/*.npy
 
 # Reference-format PDF (third-party, format reference only)
 Final_Submission.pdf
+
+# Office lock files
+~$*
+
+# Backup files
+*.bak.*
+*.prebenchmark.bak.*
+*.prerewrite.bak.*
+
+# Per-version PDF/TeX side files from iterative compilation
+manuscript/main_v*.pdf
+manuscript/main_v*.tex
+manuscript/main.tex.preorder
+manuscript/figs_png/
+
+# Reference paper text dumps (kept locally, large)
+papers/*.txt
+
+# Large trained PyTorch weights (>50 MB) -- regenerable via save_all_models.py
+trained_models/**/*.large.pt

@@ -29,6 +29,6 @@
   },
   "PCM-Net": {
     "f1": 0.8979,
-    "acc": null
+    "acc": NaN
   }
 }

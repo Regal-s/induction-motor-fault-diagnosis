@@ -1,7 +1,7 @@
 {
-  "Feature extract": 0.3407734999782406,
-  "XGBoost infer": 0.001289699983317405,
-  "Feat+XGB total": 0.342063199961558,
-  "1D-CNN infer": 0.005290200002491474,
+  "Feature extract": 0.3375914000207558,
+  "XGBoost infer": 0.0016146000125445426,
+  "Feat+XGB total": 0.33920600003330037,
+  "1D-CNN infer": 0.005353199958335608,
   "cnn_params": 3073
 }

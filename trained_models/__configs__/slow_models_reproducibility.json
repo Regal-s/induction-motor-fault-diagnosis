@@ -1,0 +1,81 @@
+{
+  "xLSTM": {
+    "source": "xlstm_model.py",
+    "decimation": 8,
+    "epochs": 16,
+    "class_balanced": true,
+    "cap_per_fold": 9000
+  },
+  "ROCKET": {
+    "source": "reservoir_models.py:train_predict_rocket",
+    "n_kernels": 1500,
+    "kernel_lengths": [
+      7,
+      9,
+      11
+    ],
+    "cap_per_fold": 1500
+  },
+  "PatchTST": {
+    "source": "modern_models.py:train_predict_patchtst",
+    "patch": 24,
+    "stride": 12,
+    "d_model": 48,
+    "n_heads": 4,
+    "n_layers": 2,
+    "d_ff": 96,
+    "dropout": 0.1,
+    "epochs": 6,
+    "batch": 96,
+    "cap_per_fold": 1500
+  },
+  "iTransformer": {
+    "source": "modern_models.py:train_predict_itransformer",
+    "d_model": 128,
+    "n_heads": 4,
+    "n_layers": 2,
+    "d_ff": 256,
+    "dropout": 0.1,
+    "epochs": 8,
+    "batch": 64,
+    "cap_per_fold": 2500
+  },
+  "TimesNet": {
+    "source": "modern_models.py:train_predict_timesnet",
+    "n_blocks": 2,
+    "hidden": 32,
+    "top_k": 2,
+    "epochs": 5,
+    "batch": 32,
+    "cap_per_fold": 1500
+  },
+  "Mamba": {
+    "source": "modern_models.py:train_predict_mamba",
+    "d_model": 32,
+    "d_state": 4,
+    "n_blocks": 1,
+    "stride": 5,
+    "epochs": 6,
+    "batch": 48,
+    "cpu_prohibitive": true
+  },
+  "TTM": {
+    "source": "modern_models.py:train_predict_foundation('TTM')",
+    "hf_model": "ibm-granite/granite-timeseries-ttm-r2",
+    "head": "RidgeClassifierCV alphas=(0.1, 1.0, 10.0)",
+    "cap_per_fold": 4000
+  },
+  "Chronos-Bolt": {
+    "source": "modern_models.py:train_predict_foundation('Chronos-Bolt')",
+    "hf_model": "amazon/chronos-bolt-small",
+    "head": "RidgeClassifierCV alphas=(0.1, 1.0, 10.0)",
+    "cap_per_fold": 4000
+  },
+  "TabPFN-2.5": {
+    "source": "benchmark_models.py:make_tabpfn",
+    "in_context_inference": true,
+    "context_cap": 2000,
+    "n_estimators": 2,
+    "note": "no trained parameters to save -- runs in-context at predict time"
+  }
+}

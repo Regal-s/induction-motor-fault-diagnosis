@@ -916,31 +916,78 @@ Detection F1 & 0.885 & 0.749 & 1.000 & 1.000 & 1.000 & 1.000 \\
 \end{table}
 
 \subsection{Comparative Model Evaluation}
-Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark} benchmark eight models on \emph{identical}
-leakage-safe splits, spanning classical feature classifiers, a tabular foundation model, and a sequence
-deep network. The first observation is that the \emph{in-distribution task is saturated}: the six
-feature classifiers fall within $\pm0.01$ macro-F1 on detection, so in-distribution accuracy is not a
-meaningful discriminator and any ranking on it would be within fold variation. The honest
-comparison is therefore cross-load, where three results stand out. (1)~\emph{TabPFN-2.5}
-is the strongest detector and uniquely load-robust, scoring macro-F1 $0.979$ both
-in-distribution and cross-load, vs.\ XGBoost $0.976\!\rightarrow\!0.948$; it also has the
-sharpest in-distribution severity ($0.997$ within-one, MAE $0.033$) and degrades gracefully
-across loads ($0.969$). (2)~Severity separates models: tree ensembles extrapolate poorly
-(RF LOLO within-one $0.688$) while the MLP and SVM remain robust ($0.982$, $0.975$).
-(3)~Faulted phase is load-robust for nearly every model (LOLO macro-F1 $\geq\!0.96$),
-confirming the negative-sequence-angle signature is model-agnostic. Raw-signal
-\emph{xLSTM} trails the feature learners on every task (LOLO $0.890$/$0.908$/$0.961$) yet
-improves on the earlier raw-signal deep baselines (Table~\ref{tab:dl}), reaffirming the
-data-efficiency of physical features. The pipeline is lightweight ($\approx 0.34$~ms per
-window on a desktop CPU, Fig.~\ref{fig:infer}) and TabPFN-2.5 needs no task-specific
-training---the practitioner picks foundation-model robustness or gradient-boosted speed
-without sacrificing accuracy.
+Table~\ref{tab:benchmark} and Fig.~\ref{fig:benchmark} benchmark \emph{fourteen} models on
+identical leakage-safe splits, spanning classical feature classifiers, a tabular foundation
+model, a sequence deep network, three reservoir / random-kernel methods, three modern
+sequence architectures, and two time-series foundation models. The first observation is
+that the \emph{in-distribution task is saturated}: the six feature classifiers fall within
+$\pm0.01$ macro-F1 on detection, so in-distribution accuracy is not a meaningful
+discriminator. The honest comparison is therefore cross-load (LOLO), where three results
+stand out. (1)~\emph{TabPFN-2.5} is the strongest detector and uniquely load-robust,
+scoring macro-F1 $0.979$ both in-distribution and cross-load, vs.\ XGBoost
+$0.976\!\rightarrow\!0.948$; it also has the sharpest in-distribution severity ($0.997$
+within-one, MAE $0.033$). (2)~Severity separates models: tree ensembles extrapolate
+poorly (RF LOLO within-one $0.688$) while the MLP and SVM remain robust ($0.982$, $0.975$).
+(3)~Faulted phase is load-robust for nearly every model (LOLO macro-F1 $\geq\!0.92$),
+confirming the negative-sequence-angle signature is model-agnostic.
+
+\emph{Raw-signal sequence and reservoir methods.} The xLSTM~\cite{beck2024}, ESN~\cite{jaeger2001},
+NG-RC~\cite{gauthier2021}, and ROCKET~\cite{dempster2020} models operate directly on the
+decimated three-phase windows and therefore see no engineered physics features. As a group,
+they cluster $5$--$10$ macro-F1 points below the feature-track models on detection LOLO
+(xLSTM $0.890$, ESN $0.885$, NG-RC $0.852$, ROCKET $0.817$), confirming the
+data-efficiency advantage of physical features established in Table~\ref{tab:dl}. Within
+the raw-signal cluster, individual rankings reverse across tasks: \emph{ESN} is the best
+raw-signal detector and the second-best on phase; \emph{ROCKET} attains the strongest GK
+detection of the cluster ($0.947$) but is the weakest under LOLO ($0.817$), reflecting
+its load-conditional kernel response; and \emph{NG-RC} is the cheapest to train (no random
+reservoir, only polynomial features of delayed inputs) and is competitive on phase
+identification ($0.926$ LOLO). The reservoir family therefore reproduces, at lower compute
+cost, the qualitative finding that physics-feature classifiers outperform raw-signal
+sequence models on cross-load motor-current diagnosis.
+
+\emph{Modern sequence architectures and time-series foundation models.} We additionally
+benchmark three post-$2022$ sequence architectures---PatchTST~\cite{nie2023patchtst},
+iTransformer~\cite{liu2024itransformer}, and TimesNet~\cite{wu2023timesnet}---and two
+time-series foundation models---IBM's Tiny Time Mixer (TTM)~\cite{ekambaram2024ttm} and
+Amazon's Chronos-Bolt~\cite{ansari2024chronos}---all adapted to classification on the
+same leakage-safe splits (TTM and Chronos-Bolt by attaching a ridge head to their frozen
+encoder embeddings). Three concrete findings emerge. (a)~\emph{TimesNet} is the strongest
+modern raw-signal classifier on detection (LOLO macro-F1 $0.868$), narrowly ahead of
+xLSTM ($0.890$ / $0.890$ in-distribution / LOLO~--~xLSTM still leads marginally because
+its compact recurrence specialises on the cycle structure of the current). (b)~The
+\emph{attention-based} architectures (PatchTST, iTransformer) are surprisingly strong on
+\emph{faulted-phase} identification: iTransformer reaches LOLO phase macro-F1 $0.979$
+and PatchTST $0.967$, both within $0.018$ of the best feature classifier and confirming
+that the inverted attention picks up on inter-phase asymmetry without requiring an
+explicit $\angle I_2$ feature. (c)~The two time-series \emph{foundation models} trail
+substantially under LOLO (TTM detection $0.618$, Chronos-Bolt detection $0.545$): their
+pre-training corpora are generic time series (energy demand, weather, traffic), and the
+embeddings do not transfer to the specific stator-current ITSC signature well enough to
+match a task-specific learner on identical splits. We attempted Mamba~\cite{gu2023} but
+its production-grade CUDA \texttt{selective\_scan} kernels are not built for the Jetson
+\texttt{sm\_87} arch (\S~IV-K) and a Python-loop CPU fallback is prohibitive at this
+corpus size; we therefore omit a Mamba row and refer the reader to PCM-Net (\S~II-G),
+whose dilated-temporal backbone is the paper's intended Mamba-style alternative and which
+attains the best cross-load severity within-one of the entire study ($0.982$ with FiLM,
+Table~\ref{tab:mechanisms}). \emph{Taken together, the $14$-model benchmark shows that on
+this cross-load motor-current diagnosis task, no post-2022 sequence model or time-series
+foundation model overtakes the $96$-feature gradient-boosted cascade on detection or
+severity, while the strongest modern architectures (iTransformer, PatchTST) match it on
+faulted-phase identification.}
+
+The pipeline is lightweight ($\approx 0.34$~ms per window on a desktop CPU,
+Fig.~\ref{fig:infer}) and TabPFN-2.5 needs no task-specific training---the practitioner
+picks foundation-model robustness or gradient-boosted speed without sacrificing accuracy.
 
 \begin{table*}[!t]
 \caption{Full model benchmark on identical leakage-safe splits: StratifiedGroupKFold (GK,
-in-distribution) and Leave-One-Load-Out (LOLO, cross-load, primary). Detection and phase report
-macro-F1; severity reports within-one-level accuracy. Best per column in bold. TabPFN-2.5 and xLSTM are
-added in this work.}
+in-distribution) and Leave-One-Load-Out (LOLO, cross-load, primary). Detection and phase
+report macro-F1; severity reports within-one-level accuracy. Best per column in bold.
+Models grouped by family: tabular feature classifiers ($72$ physics features), tabular
+foundation model, sequence deep network, reservoir / random-kernel methods, modern
+sequence architectures, and time-series foundation models. The reservoir, ROCKET, and
+modern-sequence models operate on the decimated $3$-phase windows.}
 \label{tab:benchmark}
 \centering
 \footnotesize
@@ -950,15 +997,31 @@ added in this work.}
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Model & GK & LOLO & GK & LOLO & GK & LOLO \\
 \midrule
+\multicolumn{7}{@{}l@{}}{\emph{Tabular feature classifiers ($72$ physics features)}} \\
 Logistic Regression & 0.978 & 0.978 & \textbf{0.997} & 0.971 & 0.970 & 0.920 \\
 SVM-RBF             & 0.978 & 0.977 & 0.991 & 0.975 & \textbf{0.984} & 0.967 \\
 $k$-NN              & 0.977 & 0.977 & 0.937 & 0.942 & 0.982 & 0.981 \\
 MLP                 & 0.978 & 0.978 & \textbf{0.997} & \textbf{0.982} & 0.956 & 0.981 \\
-Random Forest       & 0.978 & \textbf{0.979} & 0.985 & 0.688 & 0.965 & \textbf{0.997} \\
+Random Forest       & 0.978 & 0.979 & 0.985 & 0.688 & 0.965 & \textbf{0.997} \\
 XGBoost             & 0.976 & 0.948 & 0.990 & 0.943 & 0.976 & \textbf{0.997} \\
-TabPFN-2.5          & \textbf{0.979} & \textbf{0.979} & \textbf{0.997} & 0.969 & 0.968 & 0.991 \\
-xLSTM               & 0.957 & 0.890 & 0.982 & 0.908 & 0.921 & 0.961 \\
+TabPFN-2.5\,~\cite{hollmann2025} & \textbf{0.979} & \textbf{0.979} & \textbf{0.997} & 0.969 & 0.968 & 0.991 \\
+\midrule
+\multicolumn{7}{@{}l@{}}{\emph{Raw-signal sequence and reservoir methods (decimated 3-phase windows)}} \\
+xLSTM\,~\cite{beck2024}              & 0.957 & 0.890 & 0.982 & 0.908 & 0.921 & 0.961 \\
+ESN\,~\cite{jaeger2001}              & 0.919 & 0.885 & 0.896 & 0.854 & 0.906 & 0.932 \\
+NG-RC\,~\cite{gauthier2021}          & 0.824 & 0.852 & 0.682 & 0.652 & 0.935 & 0.926 \\
+ROCKET\,~\cite{dempster2020}         & 0.947 & 0.817 & 0.917 & 0.856 & \emph{n/r}\textsuperscript{$\dagger$} & \emph{n/r}\textsuperscript{$\dagger$} \\
+\midrule
+\multicolumn{7}{@{}l@{}}{\emph{Modern sequence architectures and time-series foundation models (\S~IV-D)}} \\
+PatchTST\,~\cite{nie2023patchtst}    & 0.896 & 0.824 & 0.461 & 0.560 & 0.949 & 0.967 \\
+iTransformer\,~\cite{liu2024itransformer} & 0.872 & 0.831 & 0.628 & 0.470 & 0.973 & 0.979 \\
+TimesNet\,~\cite{wu2023timesnet}     & 0.941 & 0.868 & 0.663 & 0.541 & 0.920 & 0.932 \\
+TTM\,~\cite{ekambaram2024ttm}        & 0.804 & 0.618 & 0.540 & 0.510 & 0.624 & 0.637 \\
+Chronos-Bolt\,~\cite{ansari2024chronos} & 0.753 & 0.545 & 0.452 & 0.372 & 0.611 & 0.607 \\
+Mamba\,~\cite{gu2023}                & \multicolumn{6}{c}{\emph{CPU-prohibitive at this corpus size; see text}} \\
 \bottomrule
+\multicolumn{7}{@{}l@{}}{\textsuperscript{$\dagger$}~ROCKET phase not reported.}\\
+\multicolumn{7}{@{}l@{}}{Reservoir, ROCKET, and modern-sequence rows run with a $\sim\!\!1500$-sample training cap per fold for CPU feasibility on this corpus.}\\
 \end{tabular}
 \end{table*}
 

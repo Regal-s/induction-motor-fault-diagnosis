@@ -41,38 +41,70 @@ differences) -- the cascade is not exploiting load proxies.
 
 ## 3. Full 14-model benchmark on identical leakage-safe splits
 
-Detection / phase use macro-F1; severity uses within-1 level accuracy.
-Bold = best per column. Sources: `dataset/benchmark_results.json`,
-`dataset/benchmark_table.csv`.
+Same leakage-safe splits used by every model -- StratifiedGroupKFold
+(`GK`, in-distribution) and Leave-One-Load-Out (`LOLO`, cross-load,
+primary metric). Detection / phase use macro-F1; severity reports
+within-one-level accuracy, exact accuracy, MAE in levels (lower is
+better), and quadratic-weighted kappa (QWK; higher is better).
+**Bold** = best per column overall. <sup>b</sup> = best per column
+*among non-tabular* models.
+Sources: `dataset/benchmark_results.json`, `dataset/benchmark_table.csv`.
 
-| Model | Det GK | Det LOLO | Sev GK w-1 | Sev LOLO w-1 | Phase GK | Phase LOLO |
-|---|---|---|---|---|---|---|
-| Logistic Regression | 0.978 | 0.978 | **0.997** | 0.971 | 0.970 | 0.920 |
-| SVM-RBF             | 0.978 | 0.977 | 0.991 | 0.975 | **0.984** | 0.967 |
-| k-NN                | 0.977 | 0.977 | 0.937 | 0.942 | 0.982 | 0.981 |
-| MLP                 | 0.978 | 0.978 | **0.997** | **0.982** | 0.956 | 0.981 |
-| Random Forest       | 0.978 | 0.979 | 0.985 | 0.688 | 0.965 | **0.997** |
-| XGBoost             | 0.976 | 0.948 | 0.990 | 0.943 | 0.976 | **0.997** |
-| TabPFN-2.5          | **0.979** | **0.979** | **0.997** | 0.969 | 0.968 | 0.991 |
-| xLSTM               | 0.957 | 0.890 | 0.982 | 0.908 | 0.921 | 0.961 |
-| ESN                 | 0.919 | 0.885 | 0.896 | 0.854 | 0.906 | 0.932 |
-| NG-RC               | 0.824 | 0.852 | 0.682 | 0.652 | 0.935 | 0.926 |
-| ROCKET              | 0.947 | 0.817 | 0.917 | 0.856 | n/r | n/r |
-| PatchTST            | 0.896 | 0.824 | 0.461 | 0.560 | 0.949 | 0.967 |
-| iTransformer        | 0.872 | 0.831 | 0.628 | 0.470 | 0.973 | 0.979 |
-| TimesNet            | 0.941 | 0.868 | 0.663 | 0.541 | 0.920 | 0.932 |
-| TTM                 | 0.804 | 0.618 | 0.540 | 0.510 | 0.624 | 0.637 |
-| Chronos-Bolt        | 0.753 | 0.545 | 0.452 | 0.372 | 0.611 | 0.607 |
+### 3.1 Master table -- every cell, every model
+
+| # | Model | Det GK F1 | Det LOLO F1 | Sev GK w-1 | Sev GK exact | Sev GK MAE | Sev GK QWK | Sev LOLO w-1 | Sev LOLO exact | Sev LOLO MAE | Sev LOLO QWK | Phs GK F1 | Phs LOLO F1 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | Logistic Regression | 0.978 | 0.978 | **0.997** | 0.879 | 0.127 | 0.982 | 0.971 | 0.781 | 0.252 | 0.961 | 0.970 | 0.920 |
+| 2 | SVM-RBF | 0.978 | 0.977 | 0.991 | 0.874 | 0.142 | 0.976 | 0.975 | 0.910 | 0.124 | 0.973 | **0.984** | 0.967 |
+| 3 | k-NN | 0.977 | 0.977 | 0.937 | 0.178 | 0.893 | 0.861 | 0.942 | 0.143 | 0.925 | 0.855 | 0.982 | 0.981 |
+| 4 | MLP | 0.978 | 0.978 | **0.997** | 0.911 | 0.095 | 0.986 | **0.982** | 0.915 | 0.112 | 0.976 | 0.956 | 0.981 |
+| 5 | Random Forest | 0.978 | 0.979 | 0.985 | 0.929 | 0.095 | 0.978 | 0.688 | 0.072 | 1.397 | 0.652 | 0.965 | **0.997** |
+| 6 | **XGBoost** *(deployed)* | 0.976 | 0.948 | 0.990 | 0.830 | 0.189 | 0.968 | 0.943 | 0.099 | 0.982 | 0.821 | 0.976 | **0.997** |
+| 7 | TabPFN-2.5 | **0.979** | **0.979** | **0.997** | **0.979** | **0.033** | **0.989** | 0.969 | 0.529 | 0.532 | 0.905 | 0.968 | 0.991 |
+| 8 | xLSTM | 0.957 | 0.890 | 0.982 | 0.455 | 0.575 | 0.917 | 0.908 | 0.295 | 0.839 | 0.825 | 0.921 | 0.961 |
+| 9 | ESN | 0.919 | 0.885 | 0.896 | 0.179 | 0.941 | 0.839 | 0.854 | 0.232 | 0.934 | 0.814 | 0.906 | 0.932 |
+| 10 | NG-RC | 0.824 | 0.852 | 0.682 | 0.143 | 1.253 | 0.759 | 0.652 | 0.220 | 1.228 | 0.729 | 0.935 | 0.926 |
+| 11 | ROCKET | 0.947 | 0.817 | 0.917 | 0.239 | 0.905 | 0.811 | **0.856**<sup>b</sup> | 0.200 | 1.058 | 0.728 | n/r | n/r |
+| 12 | PatchTST | 0.896 | 0.824 | 0.461 | 0.179 | 1.750 | 0.518 | 0.560 | 0.226 | 1.497 | 0.578 | 0.949 | 0.967 |
+| 13 | iTransformer | 0.872 | 0.831 | 0.628 | 0.140 | 1.438 | 0.632 | 0.470 | 0.179 | 1.860 | 0.281 | **0.973**<sup>b</sup> | **0.979**<sup>b</sup> |
+| 14 | TimesNet | 0.941<sup>b</sup> | **0.868**<sup>b</sup> | 0.663 | 0.163 | 1.242 | 0.752 | 0.541 | 0.194 | 1.483 | 0.545 | 0.920 | 0.932 |
+| 15 | TTM | 0.804 | 0.618 | 0.540 | 0.170 | 1.700 | 0.397 | 0.510 | 0.104 | 1.927 | 0.397 | 0.624 | 0.637 |
+| 16 | Chronos-Bolt | 0.753 | 0.545 | 0.452 | 0.124 | 2.009 | 0.216 | 0.372 | 0.104 | 2.395 | -0.061 | 0.611 | 0.607 |
+
+### 3.2 Quick read
+
+**Detection (macro-F1).** Best tabular: TabPFN-2.5 / RF (LOLO 0.979).
+Best non-tabular: TimesNet (LOLO 0.868). Worst: Chronos-Bolt (LOLO 0.545).
+
+**Severity within-1.** Best tabular: MLP (LOLO 0.982). Best non-tabular:
+ROCKET (LOLO 0.856). Worst: Chronos-Bolt (LOLO 0.372).
+
+**Severity MAE in levels (lower is better).** TabPFN-2.5 has the lowest
+in-distribution MAE by a wide margin (0.033 vs next-best 0.095). Under
+LOLO, severity MAE is much higher for the raw-signal and foundation
+models (1.0--2.4) reflecting their collapse on under-represented
+severities.
+
+**Phase ID (macro-F1).** Tied best: XGBoost / RF (LOLO 0.997). Best
+non-tabular: iTransformer (LOLO 0.979, within 0.018 of best). Even the
+foundation models stay around 0.60 here, indicating phase ID is at
+least partially solvable from raw signal.
 
 Notes:
 * Reservoir, ROCKET, and modern-sequence rows run with a ~1,500-sample
-  training cap per fold for CPU feasibility on this corpus.
+  training cap per fold for CPU feasibility on this corpus. Tabular and
+  TabPFN-2.5 rows used the full training set per fold.
 * ROCKET phase incomplete (would not finish in the run-time budget;
-  reported for detection + severity only).
+  reported for detection + severity only -- shown as `n/r`).
 * Mamba omitted: CUDA `selective_scan` not built for the Jetson `sm_87`
   arch; a Python-loop CPU fallback is prohibitive at this corpus size.
-  PCM-Net's dilated-temporal backbone (see Section 5 below) is the
-  paper's intended Mamba-style alternative.
+  PCM-Net's dilated-temporal backbone (Section 5 below, LOLO severity
+  within-1 **0.982** with FiLM) is the paper's intended Mamba-style
+  alternative.
+* TabPFN-2.5 has no parameters to save; performs in-context Bayesian
+  inference at predict time (context cap 2000, ensemble size 2).
+* Hyperparameters for the slow / reservoir / modern-sequence models are
+  in `trained_models/__configs__/slow_models_reproducibility.json`.
 
 ### Mean rank across the 6 (task, protocol) cells
 

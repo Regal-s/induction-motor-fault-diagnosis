@@ -1126,7 +1126,12 @@ both protocols ($p{=}0.0013$ GK, $p{=}0.0008$ LOLO) and detection differs across
 ($p{=}0.050$). By Friedman rank, TabPFN-2.5 and MLP are strongest on cross-load severity
 and the tree ensembles weakest. With only $5$--$6$ blocks no pairwise comparison survives
 Holm correction (smallest adjusted $p{=}0.19$); we report the omnibus as the reliable
-signal and flag the pairwise limitation rather than over-claim.
+signal and flag the pairwise limitation rather than over-claim. The inferential test is
+restricted to the seven feature/foundation models because per-block re-runs of the deep,
+reservoir, and modern-sequence models are prohibitive on this corpus; their descriptive gap
+to the tabular cluster on LOLO ($\geq\!0.05$ macro-F1 on detection, $\geq\!0.10$ on phase)
+is far beyond the within-block fold variation observed for the tabular models, so the
+inferential result is unlikely to change qualitatively.
 
 \begin{table}[!t]
 \caption{Significance across the seven feature/foundation models (Friedman omnibus on per-fold / per-load
@@ -1144,6 +1149,52 @@ Severity & LOLO & 22.85 & 0.0008 & \textbf{sig.} \\
 Phase & group $k$-fold & 3.35 & 0.764 & n.s. \\
 Phase & LOLO & 6.00 & 0.423 & n.s. \\
 \bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Mean rank across all $14$ models.} As a complementary, all-model summary we report
+the mean primary-metric rank of each model across the six (task, protocol) cells of
+Table~\ref{tab:benchmark} (Table~\ref{tab:meanrank}). Three groupings emerge cleanly:
+the tabular feature classifiers (including TabPFN-2.5) occupy the top seven ranks
+(mean rank $2.75$--$5.33$); the raw-signal sequence and reservoir methods cluster in the
+middle (mean rank $8.33$--$11.50$); and the two time-series foundation models occupy the
+bottom (TTM $14.33$, Chronos-Bolt $15.67$). The ranking is consistent with the cell-level
+findings of \S~IV-D and with the per-task significance result above: no post-$2022$
+sequence or time-series foundation model approaches the top seven across the cross-load
+benchmark.
+
+\begin{table}[!t]
+\caption{Mean primary-metric rank of each model across the six (task, protocol) cells of
+Table~\ref{tab:benchmark} (detection and phase use macro-F1; severity uses within-one-level
+accuracy). Lower is better. ROCKET's phase row is missing, so its mean is over four cells
+(detection and severity, both protocols).}
+\label{tab:meanrank}
+\centering
+\footnotesize
+\begin{tabular}{@{}llc@{}}
+\toprule
+Rank & Model & Mean rank \\
+\midrule
+$1$  & TabPFN-2.5\,~\cite{hollmann2025}           & $2.75$ \\
+$2$  & MLP                                         & $3.50$ \\
+$3$  & SVM-RBF                                     & $3.75$ \\
+$4$  & XGBoost\,~\cite{chen2016}                   & $4.75$ \\
+$5$  & Random Forest                               & $5.17$ \\
+$6$  & $k$-NN                                      & $5.25$ \\
+$7$  & Logistic Regression                         & $5.33$ \\
+\midrule
+$8$  & xLSTM\,~\cite{beck2024}                     & $8.33$ \\
+$9$  & ROCKET\,~\cite{dempster2020}\textsuperscript{$\dagger$} & $10.00$ \\
+$10$ & ESN\,~\cite{jaeger2001}                     & $10.50$ \\
+$10$ & iTransformer\,~\cite{liu2024itransformer}   & $10.50$ \\
+$12$ & TimesNet\,~\cite{wu2023timesnet}            & $11.17$ \\
+$13$ & PatchTST\,~\cite{nie2023patchtst}           & $11.50$ \\
+$13$ & NG-RC\,~\cite{gauthier2021}                 & $11.50$ \\
+\midrule
+$15$ & TTM\,~\cite{ekambaram2024ttm}               & $14.33$ \\
+$16$ & Chronos-Bolt\,~\cite{ansari2024chronos}     & $15.67$ \\
+\bottomrule
+\multicolumn{3}{@{}l@{}}{\textsuperscript{$\dagger$}~Mean over $4$ cells; phase rows unreported.}\\
 \end{tabular}
 \end{table}
 

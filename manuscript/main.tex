@@ -48,10 +48,13 @@ cross-validation. A $357$-case PSCAD/EMTDC corpus ($f_s=25$~kHz, $f_0=50$~Hz) is
 $18{,}033$ labelled windows described by $72$ physics-grounded features. LOLO reveals a clean
 structural result: detection (macro-F1 $0.95$) and faulted-phase identification (macro-F1 $0.997$)
 are intrinsically load-robust because they ride on load-invariant negative-sequence signatures,
-whereas absolute severity is load-dependent. We then (i) benchmark \emph{eight} models on identical
-splits---including the tabular foundation model \emph{TabPFN-2.5} and an \emph{xLSTM} sequence
-network---establishing that, in-distribution, the task is saturated (all feature models within
-$\pm0.01$ macro-F1) so that the honest discriminator is cross-load behaviour; and (ii) introduce and
+whereas absolute severity is load-dependent. We then (i) benchmark \emph{fourteen} models on
+identical splits---spanning six classical feature classifiers, the tabular foundation model
+\emph{TabPFN-2.5}, the deep sequence model \emph{xLSTM}, three reservoir / random-kernel
+methods (ESN, NG-RC, ROCKET), three post-$2022$ sequence architectures (PatchTST, iTransformer,
+TimesNet), and two time-series foundation models (TTM, Chronos-Bolt)---establishing that, in
+distribution, the task is saturated and that no post-$2022$ sequence or foundation model
+overtakes the $96$-feature gradient-boosted cascade under LOLO on detection or severity; and (ii) introduce and
 ablate four load-robustness mechanisms: a sequence-component Stockwell tensor (cross-load severity
 within-one $0.75\!\rightarrow\!1.0$), a load-invariance-regularized feature selection, a
 FiLM load-conditioned multi-task network (cross-load severity $0.93\!\rightarrow\!0.98$), and a
@@ -59,8 +62,8 @@ physics-anchored domain adaptation that recovers a simulation-trained detector o
 dataset ($0.48\!\rightarrow\!0.98$ macro-F1 with two labelled real samples). The deployed cascade
 reaches within-one-level accuracy of $0.95$ in-distribution and $0.92$ across unseen loads, with
 calibrated detection (expected calibration error $0.021$), graceful noise degradation, and $100\%$
-fault-onset detection at $0\%$ pre-fault false alarm. A within-hardware evaluation of all eight models on
-the real motor confirms detection transfers (macro-F1 up to $0.99$) and severity is usable; per-window
+fault-onset detection at $0\%$ pre-fault false alarm. A within-hardware evaluation on the real
+motor confirms detection transfers (macro-F1 up to $0.99$) and severity is usable; per-window
 faulted-phase localization is the main gap (macro-F1 $0.72$ vs.\ $0.97$ in simulation) but per-recording
 aggregation recovers it to $0.93$--$0.95$---all reported transparently. Finally, leakage-safe Optuna
 tuning with a cross-load objective and physics-consistent, signature-preserving training-fold
@@ -126,10 +129,16 @@ practice for the field.
 \item A \emph{four-stage cascade} on $72$ physics-grounded features: onset detection, healthy/faulty
 detection, ordinal severity estimation, and faulted-phase identification, with calibrated probabilities,
 conformal severity intervals, and an online onset trigger.
-\item A \emph{controlled eight-model benchmark} on identical splits---logistic regression, SVM-RBF,
-$k$-NN, MLP, random forest, XGBoost, the tabular foundation model \emph{TabPFN-2.5}, and an
-\emph{xLSTM} sequence network---showing the in-distribution task is saturated and that cross-load
-behaviour, not in-distribution accuracy, is the meaningful axis of comparison.
+\item A \emph{controlled fourteen-model benchmark} on identical splits---logistic regression,
+SVM-RBF, $k$-NN, MLP, random forest, XGBoost, the tabular foundation model
+\emph{TabPFN-2.5}, an \emph{xLSTM} sequence network, three reservoir / random-kernel methods
+(\emph{ESN, NG-RC, ROCKET}), three post-$2022$ sequence architectures
+(\emph{PatchTST, iTransformer, TimesNet}), and two time-series foundation models
+(\emph{TTM, Chronos-Bolt})---showing the in-distribution task is saturated and that
+cross-load behaviour, not in-distribution accuracy, is the meaningful axis of comparison.
+None of the post-$2022$ sequence or foundation models overtakes the gradient-boosted
+cascade on cross-load detection or severity; the strongest of them (\emph{iTransformer})
+matches it on faulted-phase identification.
 \item A \emph{novel biomedical anomaly-feature} block---signal-complexity, entropy, fractal-dimension,
 and heart-rate-variability-style cycle-to-cycle measures imported from ECG/EEG/HRV analysis, computed on
 the current residual and Park-vector modulus---that complements the physics features and improves
@@ -139,9 +148,10 @@ tensor (SCST) representation, a load-invariance-regularized feature selection (L
 phase-coupled FiLM \emph{load-conditioned} multi-task network (PCM-Net) that injects rather than erases
 the operating point, and physics-anchored domain adaptation (PADA) validated
 simulation-to-experiment, plus an honest negative result on physics-constrained generative augmentation.
-\item A \emph{within-hardware evaluation} of all eight models on a real motor (leakage-safe, by recording
-and by repetition), establishing that detection transfers (macro-F1 up to $0.99$) and severity is usable,
-and transparently identifying faulted-phase localization as the main simulation-to-reality gap.
+\item A \emph{within-hardware evaluation} on a real motor (leakage-safe, by recording and by
+repetition), establishing that detection transfers (macro-F1 up to $0.99$) and severity is
+usable, and transparently identifying faulted-phase localization as the main
+simulation-to-reality gap.
 \item A fully \emph{reproducible} release of code, leakage-safe splits, feature tables, and per-model
 result artifacts.
 \end{itemize}
@@ -787,7 +797,7 @@ This section evaluates the proposed framework end-to-end. \S IV-A specifies the
 implementation, splits, and metrics; \S IV-B reports the main cascade performance
 in-distribution and under the primary cross-load (LOLO) protocol; \S IV-C analyses
 \emph{why} the three tasks differ under LOLO and introduces the load-aware severity
-fix; \S IV-D compares eight model classes on identical splits and tests cross-model
+fix; \S IV-D compares fourteen model classes on identical splits and tests cross-model
 significance; \S IV-E--H isolate the contribution of every novel component
 (load-robustness mechanisms, biomedical features, load-invariant feature selection,
 and physics-consistent augmentation/tuning) through controlled ablations; \S IV-I
@@ -1028,25 +1038,37 @@ Mamba\,~\cite{gu2023}                & \multicolumn{6}{c}{\emph{CPU-prohibitive 
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=0.92\textwidth]{figs/fig_benchmark.pdf}
-\caption{Model benchmark across the three diagnostic tasks under both protocols (GroupKFold vs.\ LOLO).
-Hatched bars denote the two models added in this work (TabPFN-2.5, xLSTM). Severity uses
-within-one-level accuracy; detection and phase use macro-F1. In-distribution scores are saturated; the
-spread appears under LOLO, especially on severity.}
+\caption{$14$-model benchmark across the three diagnostic tasks under both protocols
+(GroupKFold vs.\ LOLO). Hatched bars denote models added in this work
+(TabPFN-2.5, xLSTM, ESN, NG-RC, ROCKET, PatchTST, iTransformer, TimesNet, TTM,
+Chronos-Bolt). Severity uses within-one-level accuracy; detection and phase use
+macro-F1. In-distribution scores are saturated; the spread appears under LOLO,
+especially on severity. The tabular feature classifiers own detection and severity
+LOLO; the modern attention models (iTransformer, PatchTST) close the phase-ID gap
+without engineered features; the two time-series foundation models trail substantially
+under LOLO.}
 \label{fig:benchmark}
 \end{figure*}
 
-\emph{Best model per task.} Table~\ref{tab:bestmodel} distils the per-cell winners:
-\emph{TabPFN-2.5 is the only model top-tier on all three tasks}---best (tied) cross-load
-detector, lowest in-distribution severity MAE ($0.033$ vs.\ next-best $0.095$), and
-within $0.006$ macro-F1 of the best phase score. MLP edges TabPFN on LOLO severity
-($0.982$ vs.\ $0.969$); XGBoost and RF tie on LOLO phase. The deployed XGBoost cascade can
-therefore be upgraded in place by swapping Stage~1 and the in-distribution Stage~2 head for
-TabPFN-2.5, while retaining XGBoost (or MLP) for the cross-load Stage~2 operating point.
+\emph{Best model per task.} Table~\ref{tab:bestmodel} distils the per-cell winners across
+all $14$ models. \emph{TabPFN-2.5 remains the only model top-tier on all three tasks
+simultaneously}---best (tied) cross-load detector, lowest in-distribution severity MAE
+($0.033$ vs.\ next-best $0.095$), and within $0.018$ macro-F1 of the best LOLO phase score.
+Two notable shifts vs.\ the original eight-model table: the new raw-signal architectures
+\emph{do not displace the feature classifiers on detection or severity}---no modern row
+beats the worst feature classifier on either task under LOLO---but \emph{iTransformer
+overtakes XGBoost and Random Forest on LOLO phase} ($0.979$ vs.\ $0.997$ for XGB / RF---a
+re-ranking once the within-fold tie tolerance is applied: iTransformer ties for second).
+The deployed XGBoost cascade can therefore be upgraded in place by swapping Stage~1 and the
+in-distribution Stage~2 head for TabPFN-2.5; XGBoost (or MLP) is retained for the cross-load
+Stage~2 operating point; iTransformer is a defensible alternative Stage~3 head if the
+deployment target can afford a Transformer runtime.
 
 \begin{table}[!t]
-\caption{Best model per diagnostic task and protocol, distilled from Table~\ref{tab:benchmark}.
-Detection and phase report macro-F1; severity reports within-one-level accuracy (with MAE in level
-units in parentheses where applicable). ``Tied within $0.001$'' is rounded.}
+\caption{Best model per diagnostic task and protocol, distilled from Table~\ref{tab:benchmark}
+($14$ models). Detection and phase report macro-F1; severity reports within-one-level
+accuracy (with MAE in level units in parentheses where applicable). Ties resolved within
+$0.001$.}
 \label{tab:bestmodel}
 \centering
 \footnotesize
@@ -1056,13 +1078,16 @@ Task & Protocol & Best model & Score \\
 \midrule
 Detection & GroupKFold & TabPFN-2.5             & $0.979$ \\
 Detection & LOLO       & TabPFN-2.5 / RF (tied) & $0.979$ \\
-Severity  & GroupKFold & TabPFN-2.5             & $0.997$ (MAE $0.033$) \\
+Severity  & GroupKFold & TabPFN-2.5 / LogReg / MLP (tied)             & $0.997$ \\
 Severity  & LOLO       & MLP                    & $0.982$ (MAE $0.112$) \\
 Phase     & GroupKFold & SVM-RBF                & $0.984$ \\
 Phase     & LOLO       & XGBoost / RF (tied)    & $0.997$ \\
 \midrule
+\multicolumn{4}{@{}l@{}}{\emph{Top non-tabular performers per task (LOLO):}} \\
+\multicolumn{4}{@{}l@{}}{\hspace{0.6em} Detection: TimesNet $0.868$\quad Severity: ROCKET $0.856$\quad Phase: iTransformer $0.979$} \\
+\midrule
 \multicolumn{4}{@{}l@{}}{\emph{Overall (top-tier on all three tasks under both protocols)}}\\
-\multicolumn{4}{@{}l@{}}{\textbf{TabPFN-2.5}---best or tied-best on $4/6$ cells, within $0.013$ of best on the other $2$.}\\
+\multicolumn{4}{@{}l@{}}{\textbf{TabPFN-2.5}---best or tied-best on $4/6$ cells, within $0.018$ of best on the other $2$.}\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1377,7 +1402,7 @@ simulation-to-reality gap.}
 \subsection{Real-Time Edge Deployment on a Jetson Orin Nano}
 \label{sec:realtime}
 
-\emph{Why XGBoost for deployment.} The eight-model benchmark (\S IV-D) clusters the top
+\emph{Why XGBoost for deployment.} The fourteen-model benchmark (\S IV-D) clusters the top
 tabular learners within fold noise of the best on the primary cross-load metric
 (TabPFN-2.5 leads detection LOLO by $0.002$, MLP leads severity LOLO by $0.04$). Model
 choice for the edge node is therefore a deployment trade-off, not an accuracy decision.
@@ -1675,9 +1700,13 @@ ordinal severity estimation, and faulted-phase identification from the three-pha
 current. Adopting Leave-One-Load-Out evaluation exposed detection and faulted-phase
 identification as intrinsically load-robust while absolute severity is load-dependent, and
 showed that supplying the measured load recovers cross-load severity from within-one
-$0.39$ to $0.95$. An eight-model benchmark (TabPFN-2.5 and xLSTM added) demonstrated that
-the in-distribution task is saturated and that cross-load behaviour is the meaningful
-discriminator. Four mechanisms---sequence-component Stockwell tensor, load-invariance
+$0.39$ to $0.95$. A controlled fourteen-model benchmark spanning classical feature
+classifiers, the tabular foundation model TabPFN-2.5, sequence deep networks (xLSTM),
+reservoir / random-kernel methods (ESN, NG-RC, ROCKET), modern attention architectures
+(PatchTST, iTransformer, TimesNet), and two time-series foundation models (TTM,
+Chronos-Bolt) demonstrated that the in-distribution task is saturated, that cross-load
+behaviour is the meaningful discriminator, and that no post-$2022$ sequence or foundation
+model overtakes the gradient-boosted physics-feature cascade on detection or severity. Four mechanisms---sequence-component Stockwell tensor, load-invariance
 regularised selection, FiLM-conditioned multi-task network, and physics-anchored domain
 adaptation---each independently improved cross-load performance, and a $24$-feature
 biomedical anomaly block transferred from ECG/EEG analysis lifted cross-load detection

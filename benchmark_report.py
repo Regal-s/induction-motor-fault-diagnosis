@@ -20,10 +20,13 @@ plt.rcParams.update({"svg.fonttype": "none", "font.size": 8, "axes.titlesize": 9
                      "axes.labelsize": 8, "legend.fontsize": 7, "figure.dpi": 120})
 
 ROOT = Path(r"D:\Naveen"); DS = ROOT / "dataset"; OUT = ROOT / "figures_svg"
-NEW = {"TabPFN-2.5", "xLSTM"}
+NEW = {"TabPFN-2.5", "xLSTM", "ESN", "NG-RC", "ROCKET",
+       "PatchTST", "iTransformer", "TimesNet", "TTM", "Chronos-Bolt"}
 PRIMARY = {"detection": "macro_f1", "severity": "within1", "phase": "macro_f1"}
 PRIMARY_LABEL = {"detection": "macro-F1", "severity": "within-1", "phase": "macro-F1"}
-ORDER = ["LogReg", "SVM-RBF", "KNN", "MLP", "RandomForest", "XGBoost", "TabPFN-2.5", "xLSTM"]
+ORDER = ["LogReg", "SVM-RBF", "KNN", "MLP", "RandomForest", "XGBoost", "TabPFN-2.5",
+         "xLSTM", "ESN", "NG-RC", "ROCKET",
+         "PatchTST", "iTransformer", "TimesNet", "TTM", "Chronos-Bolt"]
 
 
 def load():
